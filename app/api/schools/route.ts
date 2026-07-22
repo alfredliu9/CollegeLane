@@ -1,7 +1,7 @@
 import { env } from "cloudflare:workers";
 import { schoolCatalog, verifiedMetrics } from "@/data/schoolCatalog";
 
-const CATALOG_VERSION="2026-07-22-tfrrs3139-v2";
+const CATALOG_VERSION="2026-07-22-ncaa3139-usports84-v3";
 
 async function ensureDatabase(db:D1Database){
   await db.batch([
