@@ -3,7 +3,7 @@
 
 /* Minimal CollegeLane interface — presentation only. */
 :root{--ink:#172033;--green:#173b66;--lime:#2f80ed;--cream:#f6f7f9;--line:#e5e8ee;--muted:#6f7785;--white:#fff}
-body{background:#f6f7f9;color:var(--ink);font-family:var(--font-geist-sans),Arial,sans-serif;font-size:15px}
+body{background:#f6f7f9;color:var(--ink);font-family:var(--font-inter),Inter,Arial,sans-serif;font-size:15px;font-feature-settings:"cv02","cv03","cv04","cv11";font-optical-sizing:auto}
 p{color:var(--muted);line-height:1.6}
 h1,h2,h3{letter-spacing:-.035em}
 .logo img{width:132px;height:70px}
