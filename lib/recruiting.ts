@@ -62,12 +62,12 @@ export function assess(profile: AthleteProfile) {
     explanation: `${profile.name}'s ${formatPerformance(profile)} ${profile.season.toLowerCase()} ${profile.event.toLowerCase()} result suggests it is worth researching ${pathways}. This estimate uses broad prototype benchmarks; roster needs, academics, verified results, and recruiting year still matter.`,
     index,
     pathways,
-    nextSteps: [profile.verificationUrl ? "Keep your verified result current" : "Add an official result-verification link", "Build a balanced list of 8–12 programs", `Prepare outreach using your ${formatPerformance(profile)} result`],
+    nextSteps: ["Keep your performance details current", "Build a balanced list of 8–12 programs", `Prepare outreach using your ${formatPerformance(profile)} result`],
   };
 }
 
 export function profileCompletion(p: AthleteProfile) {
-  const values = [p.name,p.lastName,p.gradYear,p.province,p.school,p.event,p.performance,p.meet,p.resultDate,p.average,p.major,p.region,p.verificationUrl,p.upcomingMeet];
+  const values = [p.name,p.lastName,p.gradYear,p.province,p.school,p.event,p.performance,p.meet,p.resultDate,p.average,p.major,p.region];
   return Math.round(values.filter(Boolean).length / values.length * 100);
 }
 
