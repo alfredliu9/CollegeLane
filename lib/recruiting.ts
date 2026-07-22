@@ -73,6 +73,21 @@ export function profileCompletion(p: AthleteProfile) {
   return Math.round(values.filter(Boolean).length / values.length * 100);
 }
 
+const ratingBands:Record<"Men"|"Women",Record<EventName,[number,number]>>={
+  Men:{"100 metres":[13,10.2],"200 metres":[26,20.5],"400 metres":[60,45.5],"Long jump":[5.2,7.6],"Triple jump":[10.8,15.7]},
+  Women:{"100 metres":[15,11.1],"200 metres":[30,22.5],"400 metres":[68,51.5],"Long jump":[4.4,6.5],"Triple jump":[9.5,13.8]}
+};
+
+export function collegeRating(profile:AthleteProfile){
+  const gender=profile.gender||"Men",[entry,elite]=ratingBands[gender][profile.event],running=isRunningEvent(profile.event);
+  const progress=running?(entry-profile.performance)/(entry-elite):(profile.performance-entry)/(elite-entry);
+  const rating=Math.round(Math.max(40,Math.min(110,50+progress*55)));
+  const stars=rating>=95?5:rating>=85?4:rating>=75?3:rating>=65?2:1;
+  const labels=["Emerging","Developing","Collegiate range","Competitive","National-level"];
+  const index=stars-1;
+  return {rating,stars,index,label:labels[index],percentile:Math.max(1,Math.min(99,Math.round((rating-45)/60*98))),entry,elite};
+}
+
 export function localAssistantReply(question: string, p: AthleteProfile) {
   const q = question.toLowerCase(); const a = assess(p); const mark = formatPerformance(p);
   if (/good enough|level|potential|compete/.test(q)) return `Your ${mark} ${p.event.toLowerCase()} result currently maps to “${a.label}” in CollegeLane's broad educational model. That is a research signal, not a recruiting verdict. Verify the mark, compare current rosters, and contact a balanced mix of programs.`;
