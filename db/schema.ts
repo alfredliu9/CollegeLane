@@ -10,6 +10,7 @@ export const programMetrics = sqliteTable("program_metrics", {
 export const users = sqliteTable("users", {
   id:text("id").primaryKey(),
   email:text("email").notNull().unique(),
+  lastName:text("last_name").notNull().default(""),
   passwordHash:text("password_hash").notNull(),
   passwordSalt:text("password_salt").notNull(),
   createdAt:integer("created_at").notNull()

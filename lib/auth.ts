@@ -41,7 +41,7 @@ function cookieValue(request:Request){
 export async function currentUser(request:Request){
   const raw=cookieValue(request); if(!raw)return null;
   const now=Math.floor(Date.now()/1000);
-  const row=await env.DB.prepare("SELECT users.id,users.email FROM sessions JOIN users ON users.id=sessions.user_id WHERE sessions.token_hash=? AND sessions.expires_at>?").bind(await sha256(raw),now).first<{id:string;email:string}>();
+  const row=await env.DB.prepare("SELECT users.id,users.email,users.last_name AS lastName FROM sessions JOIN users ON users.id=sessions.user_id WHERE sessions.token_hash=? AND sessions.expires_at>?").bind(await sha256(raw),now).first<{id:string;email:string;lastName:string}>();
   return row||null;
 }
 
