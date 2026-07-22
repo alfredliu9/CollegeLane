@@ -4,14 +4,17 @@ CollegeLane is a mobile-first prototype that helps Canadian high school track-an
 
 ## Prototype scope
 
-This first stage is a frontend-only demonstration. It uses typed sample data and browser storage for saved schools, plan progress, outreach records, and email drafts. Authentication, assessments, schools, chat replies, and coach details are simulated. No database, external authentication, AI, email delivery, payments, or analytics are connected.
+This stage is a functional browser-persistent application. One athlete profile drives the dashboard, assessment engine, school-fit labels, coach-email builder, and recruiting assistant context. Saved schools, plan progress, outreach records, school notes, chat history, and email drafts persist locally. School records and recruiting benchmarks remain educational sample data.
+
+The assistant uses the server-side OpenAI Responses API when `OPENAI_API_KEY` is configured. Without a key it automatically uses the profile-aware guided response engine, so the chat remains functional during local development.
 
 ## Run locally
 
 1. Install dependencies with `pnpm install`.
 2. Start the development server with `pnpm dev`.
-3. Open the local address shown in the terminal.
-4. Create a sample account or log in, then complete onboarding.
+3. Copy `.env.example` to `.env.local` and add an OpenAI API key if AI-generated answers are required.
+4. Open the local address shown in the terminal.
+5. Create a sample account or log in, then complete onboarding.
 
 Build the deployment bundle with `pnpm build`.
 
