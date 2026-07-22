@@ -1,7 +1,7 @@
 import { env } from "cloudflare:workers";
 import { schoolCatalog, verifiedMetrics } from "@/data/schoolCatalog";
 
-const CATALOG_VERSION="2026-07-22-ncaa1082-usports59-v1";
+const CATALOG_VERSION="2026-07-22-tfrrs3139-v2";
 
 async function ensureDatabase(db:D1Database){
   await db.batch([
@@ -17,7 +17,7 @@ async function ensureDatabase(db:D1Database){
   for(let i=0;i<schoolCatalog.length;i+=75){
     await db.batch(schoolCatalog.slice(i,i+75).map(s=>db.prepare("INSERT INTO schools VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)").bind(s.id,s.name,s.city,s.region,s.country,s.pathway,s.division,s.conference,s.size,JSON.stringify(s.majors),s.teamCategory,s.sourceUrl,s.sourceLabel,s.reviewedAt)));
   }
-  for(const m of verifiedMetrics)await db.prepare("INSERT INTO program_metrics (school_id,event,roster_average,recruiting_benchmark,sample_size,season,standard_type) VALUES (?,?,?,0,0,'','Verified roster average')").bind(m.schoolId,m.event,m.rosterAverage).run();
+  for(let i=0;i<verifiedMetrics.length;i+=75)await db.batch(verifiedMetrics.slice(i,i+75).map(m=>db.prepare("INSERT INTO program_metrics (school_id,event,roster_average,recruiting_benchmark,sample_size,season,standard_type) VALUES (?,?,?,0,?,'2026 outdoor','Verified roster average')").bind(m.schoolId,m.event,m.rosterAverage,m.sampleSize)));
   await db.prepare("INSERT OR REPLACE INTO catalog_meta VALUES ('version',?)").bind(CATALOG_VERSION).run();
 }
 
@@ -39,7 +39,9 @@ export async function GET(request:Request){
     if(q){where+=" AND (LOWER(s.name) LIKE ? OR LOWER(s.city) LIKE ? OR LOWER(s.region) LIKE ? OR LOWER(s.conference) LIKE ?)";const like=`%${q}%`;args.push(like,like,like,like)}
     const total=await env.DB.prepare(`SELECT COUNT(*) AS count FROM schools s${where}`).bind(...args).first<{count:number}>();
     const sql=`SELECT s.*,? AS event,m.roster_average FROM schools s LEFT JOIN program_metrics m ON m.school_id=s.id AND m.event=?${where} ORDER BY CASE WHEN m.roster_average IS NULL THEN 1 ELSE 0 END,s.name LIMIT ?`;
-    const result=await env.DB.prepare(sql).bind(event,event,...args,id?1:50).all(); return Response.json({schools:result.results,total:total?.count||0,source:"database"});
+    const result=await env.DB.prepare(sql).bind(event,event,...args,id?1:50).all();
+    const schools=result.results.map(row=>{const metric=verifiedMetrics.find(m=>m.schoolId===row.id&&m.event===event);return metric?{...row,source_url:metric.sourceUrl,source_label:metric.sourceLabel,reviewed_at:metric.reviewedAt}:row});
+    return Response.json({schools,total:total?.count||0,source:"database"});
   }catch{
     const schools=fallback(event,pathway,division,q,id); const total=schoolCatalog.filter(s=>(!pathway||pathway==="All"||s.pathway===pathway)&&(!division||division==="All divisions"||s.division===division)&&(!q||(s.name+" "+s.city+" "+s.region+" "+s.conference).toLowerCase().includes(q))).length;
     return Response.json({schools,total,source:"bundled"});

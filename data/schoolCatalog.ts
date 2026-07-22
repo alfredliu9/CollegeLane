@@ -1,4 +1,5 @@
 import directory from "./schoolDirectory.json";
+import metrics from "./verifiedMetrics.json";
 
 export interface SchoolProgram {
   id:string; name:string; city:string; region:string; country:string; pathway:"NCAA"|"U Sports";
@@ -7,20 +8,10 @@ export interface SchoolProgram {
 }
 
 export interface VerifiedMetric {
-  schoolId:string; event:string; rosterAverage:number; sourceUrl:string; sourceLabel:string; reviewedAt:string;
+  schoolId:string; event:string; rosterAverage:number; sampleSize:number; sourceUrl:string; sourceLabel:string; reviewedAt:string;
 }
 
 export const schoolCatalog = directory as SchoolProgram[];
 
-// A metric is published only after its underlying marks have been individually checked.
-// Missing metrics intentionally remain null in the UI instead of being estimated.
-export const verifiedMetrics:VerifiedMetric[] = [
-  {
-    schoolId:"ncaa-86",
-    event:"Long jump",
-    rosterAverage:6.56,
-    sourceUrl:"https://www.tfrrs.org/teams/1334",
-    sourceLabel:"TFRRS University at Buffalo performance list",
-    reviewedAt:"2026-07-22"
-  }
-];
+// Generated from athlete-level season bests; missing metrics remain null instead of being estimated.
+export const verifiedMetrics = metrics as VerifiedMetric[];
