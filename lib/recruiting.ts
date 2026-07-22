@@ -23,6 +23,7 @@ export interface AthleteProfile {
   region: string;
   pathways: string[];
   goals: string[];
+  goalNotes: string;
   upcomingMeet: string;
 }
 
@@ -32,7 +33,7 @@ export const defaultAthlete: AthleteProfile = {
   meet: "Ontario Summer Classic", resultDate: "2026-06-14", verificationUrl: "", average: 89,
   major: "Economics", schoolSize: "No preference", region: "Ontario and nearby U.S.",
   pathways: ["U Sports", "NCAA Division II", "NCAA Division III"],
-  goals: ["Compete at the strongest possible level", "Balance strong academics and athletics"], upcomingMeet: ""
+  goals: ["Compete at the strongest possible level", "Balance strong academics and athletics"], goalNotes: "", upcomingMeet: ""
 };
 
 const levels: Record<EventName, number[]> = {
