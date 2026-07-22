@@ -1,4 +1,8 @@
-// Intentionally empty by default.
-// Add Drizzle tables here when the site actually needs a database.
-// See examples/d1/db/schema.ts for an opt-in example.
-export {};
+import { integer, primaryKey, real, sqliteTable, text } from "drizzle-orm/sqlite-core";
+
+export const schools = sqliteTable("schools", {
+  id:text("id").primaryKey(), name:text("name").notNull(), city:text("city").notNull(), region:text("region").notNull(), country:text("country").notNull(), pathway:text("pathway").notNull(), division:text("division").notNull(), conference:text("conference").notNull(), size:text("size").notNull(), majorsJson:text("majors_json").notNull(), teamCategory:text("team_category").notNull(), sourceUrl:text("source_url").notNull(), sourceLabel:text("source_label").notNull(), reviewedAt:text("reviewed_at").notNull()
+});
+export const programMetrics = sqliteTable("program_metrics", {
+  schoolId:text("school_id").notNull(), event:text("event").notNull(), rosterAverage:real("roster_average").notNull(), recruitingBenchmark:real("recruiting_benchmark").notNull(), sampleSize:integer("sample_size").notNull(), season:text("season").notNull(), standardType:text("standard_type").notNull()
+}, table=>[primaryKey({columns:[table.schoolId,table.event]})]);
