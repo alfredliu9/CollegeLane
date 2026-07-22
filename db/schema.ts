@@ -22,3 +22,10 @@ export const sessions = sqliteTable("sessions", {
   expiresAt:integer("expires_at").notNull(),
   createdAt:integer("created_at").notNull()
 });
+
+export const userState = sqliteTable("user_state", {
+  userId:text("user_id").notNull(),
+  stateKey:text("state_key").notNull(),
+  valueJson:text("value_json").notNull(),
+  updatedAt:integer("updated_at").notNull()
+}, table=>[primaryKey({columns:[table.userId,table.stateKey]})]);
