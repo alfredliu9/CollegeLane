@@ -1,0 +1,9 @@
+export const athlete={name:"Jordan",gradYear:2027,province:"Ontario",school:"Lakeshore Collegiate",event:"Long jump",personalBest:"6.62 m",average:89,major:"Economics"};
+export const schools=[
+{id:"north-ridge",name:"North Ridge University",location:"Kingston, ON",system:"U Sports",division:"U Sports",conference:"Ontario Collegiate",size:"18,000",academics:["Economics","Business"],fit:"Strong fit"},
+{id:"lakeview",name:"Lakeview State College",location:"Erie, PA",system:"NCAA",division:"Division II",conference:"Atlantic Lakes",size:"6,500",academics:["Economics","Finance"],fit:"Target"},
+{id:"cedar-valley",name:"Cedar Valley University",location:"London, ON",system:"U Sports",division:"U Sports",conference:"Ontario Collegiate",size:"31,000",academics:["Business","Engineering"],fit:"Target"},
+{id:"harbour-tech",name:"Harbour Technical Institute",location:"Boston, MA",system:"NCAA",division:"Division III",conference:"New England Academic",size:"4,800",academics:["Data Science","Economics"],fit:"Reach"},
+{id:"prairie-west",name:"Prairie West University",location:"Winnipeg, MB",system:"U Sports",division:"U Sports",conference:"Canada West",size:"14,000",academics:["Economics","Kinesiology"],fit:"Research needed"}];
+export const tasks=["Verify your primary performance","Create an athletic résumé","Build an initial school list","Learn NCAA and U Sports eligibility basics","Complete recruiting questionnaires","Draft your first coach email","Contact initial programs","Schedule follow-ups","Update coaches after major personal bests"];
+export const replies=["Your 6.62 m long jump is a useful starting point, but fit varies by program and year. Build a balanced list and verify your result.","A strong first email includes your graduation year, verified best, academics, why the program fits, and one clear next step.","Confirm NCAA and U Sports eligibility information through official sources."];
