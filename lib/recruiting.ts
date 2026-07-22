@@ -3,6 +3,7 @@ export type AssessmentLabel = "Exploring" | "Developing" | "Potential fit" | "Co
 
 export interface AthleteProfile {
   name: string;
+  lastName: string;
   gradYear: number;
   province: string;
   school: string;
@@ -25,7 +26,7 @@ export interface AthleteProfile {
 }
 
 export const defaultAthlete: AthleteProfile = {
-  name: "Jordan", gradYear: 2027, province: "Ontario", school: "Lakeshore Collegiate", category: "Senior",
+  name: "Jordan", lastName: "", gradYear: 2027, province: "Ontario", school: "Lakeshore Collegiate", category: "Senior",
   event: "Long jump", performance: 6.62, season: "Outdoor", timing: "Fully automatic", wind: 1.1,
   meet: "Ontario Summer Classic", resultDate: "2026-06-14", verificationUrl: "", average: 89,
   major: "Economics", schoolSize: "No preference", region: "Ontario and nearby U.S.",
@@ -66,7 +67,7 @@ export function assess(profile: AthleteProfile) {
 }
 
 export function profileCompletion(p: AthleteProfile) {
-  const values = [p.name,p.gradYear,p.province,p.school,p.event,p.performance,p.meet,p.resultDate,p.average,p.major,p.region,p.verificationUrl,p.upcomingMeet];
+  const values = [p.name,p.lastName,p.gradYear,p.province,p.school,p.event,p.performance,p.meet,p.resultDate,p.average,p.major,p.region,p.verificationUrl,p.upcomingMeet];
   return Math.round(values.filter(Boolean).length / values.length * 100);
 }
 
