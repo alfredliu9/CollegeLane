@@ -29,3 +29,11 @@ export const userState = sqliteTable("user_state", {
   valueJson:text("value_json").notNull(),
   updatedAt:integer("updated_at").notNull()
 }, table=>[primaryKey({columns:[table.userId,table.stateKey]})]);
+
+export const coaches = sqliteTable("coaches", {
+  id:text("id").primaryKey(), schoolId:text("school_id").notNull(), name:text("name").notNull(), role:text("role").notNull(), email:text("email").notNull().default(""), sourceUrl:text("source_url").notNull(), verifiedAt:integer("verified_at").notNull()
+});
+
+export const userUploads = sqliteTable("user_uploads", {
+  id:text("id").primaryKey(), userId:text("user_id").notNull(), kind:text("kind").notNull(), filename:text("filename").notNull(), contentType:text("content_type").notNull(), size:integer("size").notNull(), objectKey:text("object_key").notNull(), createdAt:integer("created_at").notNull()
+});
