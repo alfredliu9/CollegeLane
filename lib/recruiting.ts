@@ -73,19 +73,25 @@ export function profileCompletion(p: AthleteProfile) {
   return Math.round(values.filter(Boolean).length / values.length * 100);
 }
 
-const ratingBands:Record<"Men"|"Women",Record<EventName,[number,number]>>={
-  Men:{"100 metres":[13,10.2],"200 metres":[26,20.5],"400 metres":[60,45.5],"Long jump":[5.2,7.6],"Triple jump":[10.8,15.7]},
-  Women:{"100 metres":[15,11.1],"200 metres":[30,22.5],"400 metres":[68,51.5],"Long jump":[4.4,6.5],"Triple jump":[9.5,13.8]}
+const ratingBands:Record<"Men"|"Women",Record<EventName,number[]>>={
+  Men:{"100 metres":[12.8,12,11.4,10.9,10.5,10.1],"200 metres":[26,24,22.8,21.8,21,20.2],"400 metres":[59,55,51.5,49,47,44.5],"Long jump":[5.5,6,6.5,7,7.5,8.1],"Triple jump":[11,12,13,14,15,16.5]},
+  Women:{"100 metres":[14.5,13.3,12.5,11.9,11.5,10.9],"200 metres":[29.5,27,25.2,24,23.2,22.2],"400 metres":[68,62,58,55,52.5,49.5],"Long jump":[4.5,5,5.5,5.9,6.3,6.8],"Triple jump":[9.5,10.5,11.5,12.3,13.1,14.2]}
 };
 
 export function collegeRating(profile:AthleteProfile){
-  const gender=profile.gender||"Men",[entry,elite]=ratingBands[gender][profile.event],running=isRunningEvent(profile.event);
-  const progress=running?(entry-profile.performance)/(entry-elite):(profile.performance-entry)/(elite-entry);
-  const rating=Math.round(Math.max(40,Math.min(110,50+progress*55)));
-  const stars=rating>=95?5:rating>=85?4:rating>=75?3:rating>=65?2:1;
+  const gender=profile.gender||"Men",anchors=ratingBands[gender][profile.event],running=isRunningEvent(profile.event),scores=[40,55,70,82,92,100];
+  const performance=profile.performance;
+  let rating=running?(performance>=anchors[0]?scores[0]:scores.at(-1)!):(performance<=anchors[0]?scores[0]:scores.at(-1)!);
+  for(let i=0;i<anchors.length-1;i++){
+    const within=running?performance<=anchors[i]&&performance>=anchors[i+1]:performance>=anchors[i]&&performance<=anchors[i+1];
+    if(within){const progress=(performance-anchors[i])/(anchors[i+1]-anchors[i]);rating=Math.round(scores[i]+progress*(scores[i+1]-scores[i]));break;}
+  }
+  rating=Math.max(35,Math.min(100,rating));
+  const stars=rating>=92?5:rating>=82?4:rating>=70?3:rating>=55?2:1;
   const labels=["Emerging","Developing","Collegiate range","Competitive","National-level"];
   const index=stars-1;
-  return {rating,stars,index,label:labels[index],percentile:Math.max(1,Math.min(99,Math.round((rating-45)/60*98))),entry,elite};
+  const pathway=rating>=92?"NCAA Division I and top U SPORTS programs":rating>=82?"NCAA Division II, selective Division I, and strong U SPORTS programs":rating>=70?"NCAA Division III, developing Division II, and U SPORTS programs":rating>=55?"development-focused NCAA Division III or U SPORTS programs":"continued development before targeted collegiate outreach";
+  return {rating,stars,index,label:`${labels[index]} · ${pathway}`,pathway,percentile:Math.max(1,Math.min(99,rating)),entry:anchors[0],elite:anchors.at(-1)!};
 }
 
 export function localAssistantReply(question: string, p: AthleteProfile) {
