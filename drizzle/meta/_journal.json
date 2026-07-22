@@ -8,6 +8,13 @@
       "when": 1784731492831,
       "tag": "0000_stormy_quasimodo",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1784738800000,
+      "tag": "0001_collegelane_accounts",
+      "breakpoints": true
     }
   ]
 }
