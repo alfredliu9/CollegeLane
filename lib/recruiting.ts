@@ -1,6 +1,16 @@
 export type EventName = "100 metres" | "200 metres" | "400 metres" | "Long jump" | "Triple jump";
 export type AssessmentLabel = "Exploring" | "Developing" | "Potential fit" | "Competitive" | "Highly competitive";
 
+export interface AthleteResult {
+  event: EventName;
+  performance: number;
+  season: "Indoor" | "Outdoor";
+  timing: "Fully automatic" | "Hand timed";
+  wind: number | null;
+  meet: string;
+  resultDate: string;
+}
+
 export interface AthleteProfile {
   name: string;
   lastName: string;
@@ -16,6 +26,7 @@ export interface AthleteProfile {
   wind: number | null;
   meet: string;
   resultDate: string;
+  secondaryResults: AthleteResult[];
   verificationUrl: string;
   average: number;
   major: string;
@@ -31,6 +42,10 @@ export const defaultAthlete: AthleteProfile = {
   name: "Jordan", lastName: "", gender: "", gradYear: 2027, province: "Ontario", school: "Lakeshore Collegiate", category: "Senior",
   event: "Long jump", performance: 6.62, season: "Outdoor", timing: "Fully automatic", wind: 1.1,
   meet: "Ontario Summer Classic", resultDate: "2026-06-14", verificationUrl: "", average: 89,
+  secondaryResults: [
+    { event: "100 metres", performance: 0, season: "Outdoor", timing: "Fully automatic", wind: null, meet: "", resultDate: "" },
+    { event: "200 metres", performance: 0, season: "Outdoor", timing: "Fully automatic", wind: null, meet: "", resultDate: "" },
+  ],
   major: "Economics", schoolSize: "No preference", region: "Ontario and nearby U.S.",
   pathways: ["U Sports", "NCAA Division II", "NCAA Division III"],
   goals: ["Compete at the strongest possible level", "Balance strong academics and athletics"], goalNotes: "", upcomingMeet: ""
