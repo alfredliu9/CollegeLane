@@ -83,6 +83,12 @@ th,td{border-color:#edf0f3}
 .auth>section p{color:#657083}
 .auth section h1{font-size:54px}
 .auth>form{padding:48px}
+.google-auth{width:100%;margin-top:4px;background:#fff!important;color:#172033!important;border-color:#d9dee7!important}
+.oauth-divider{display:flex;align-items:center;gap:12px;margin:22px 0;color:#7b8493;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.08em}
+.oauth-divider::before,.oauth-divider::after{content:"";height:1px;background:#e2e6ec;flex:1}
+.auth-confirmation{padding:20px;margin:20px 0;border:1px solid #b9d9c7;background:#f1faf4;border-radius:10px}
+.auth-confirmation b{display:block;font-size:18px;margin-bottom:6px}
+.auth-confirmation p{margin:0}
 .onboard{background:#f6f7f9}
 .onboard header{border-bottom:1px solid #e5e8ee}
 .onboard .bar{background:#2f80ed}

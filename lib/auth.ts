@@ -48,3 +48,26 @@ export async function currentUser(request:Request){
 export async function deleteCurrentSession(request:Request){
   const raw=cookieValue(request); if(raw)await env.DB.prepare("DELETE FROM sessions WHERE token_hash=?").bind(await sha256(raw)).run();
 }
+
+type VerifiedIdentity={id:string;email?:string|null};
+
+export async function resolveOrCreateAppUser(identity:VerifiedIdentity){
+  const email=normalizeEmail(identity.email||"");
+  if(!identity.id||!/^\S+@\S+\.\S+$/.test(email))throw new Error("A verified email address is required.");
+  const linked=await env.DB.prepare("SELECT users.id,users.email,users.last_name AS lastName FROM auth_identities JOIN users ON users.id=auth_identities.user_id WHERE auth_identities.provider=? AND auth_identities.provider_subject=?").bind("supabase",identity.id).first<{id:string;email:string;lastName:string}>();
+  if(linked)return {...linked,isNew:false};
+  const existing=await env.DB.prepare("SELECT id,email,last_name AS lastName FROM users WHERE email=?").bind(email).first<{id:string;email:string;lastName:string}>();
+  const now=Math.floor(Date.now()/1000);
+  const user=existing||{id:crypto.randomUUID(),email,lastName:""};
+  if(!existing){
+    const unavailable=await hashPassword(bytesToBase64(crypto.getRandomValues(new Uint8Array(32))));
+    await env.DB.prepare("INSERT INTO users (id,email,last_name,password_hash,password_salt,created_at) VALUES (?,?,?,?,?,?)").bind(user.id,email,"",unavailable.hash,unavailable.salt,now).run();
+  }
+  await env.DB.prepare("INSERT INTO auth_identities (provider,provider_subject,user_id,email,created_at) VALUES (?,?,?,?,?) ON CONFLICT(provider,provider_subject) DO UPDATE SET user_id=excluded.user_id,email=excluded.email").bind("supabase",identity.id,user.id,email,now).run();
+  return {...user,isNew:!existing};
+}
+
+export async function issueAppSession(user:{id:string;email:string;lastName?:string},status=200){
+  const session=await createSession(user.id);
+  return Response.json({user:{id:user.id,email:user.email,lastName:user.lastName||""}},{status,headers:{"Set-Cookie":sessionCookie(session.raw,session.maxAge),"Cache-Control":"private, no-store"}});
+}

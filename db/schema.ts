@@ -23,6 +23,14 @@ export const sessions = sqliteTable("sessions", {
   createdAt:integer("created_at").notNull()
 });
 
+export const authIdentities = sqliteTable("auth_identities", {
+  provider:text("provider").notNull(),
+  providerSubject:text("provider_subject").notNull(),
+  userId:text("user_id").notNull(),
+  email:text("email").notNull(),
+  createdAt:integer("created_at").notNull()
+}, table=>[primaryKey({columns:[table.provider,table.providerSubject]})]);
+
 export const userState = sqliteTable("user_state", {
   userId:text("user_id").notNull(),
   stateKey:text("state_key").notNull(),
