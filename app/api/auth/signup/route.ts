@@ -10,7 +10,12 @@ export async function POST(request:Request){
     const {client,pending}=createRequestClient(request);
     const redirectTo=new URL("/auth/callback",request.url).toString();
     const {data,error}=await client.auth.signUp({email,password,options:{emailRedirectTo:redirectTo}});
-    if(error)return Response.json({error:error.message||"Unable to create the account."},{status:400});
+    if(error){
+      const message=typeof error.message==="string"&&error.message.trim()&&error.message!=="{}"
+        ?error.message
+        :"The confirmation email could not be sent. Please check the email service and try again.";
+      return Response.json({error:message},{status:error.status||400});
+    }
     if(!data.session||!data.user?.email){
       const response=Response.json({requiresEmailConfirmation:true,email},{status:202,headers:{"Cache-Control":"private, no-store"}});
       cookieHeaders(pending).forEach(value=>response.headers.append("Set-Cookie",value));
