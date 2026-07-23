@@ -8,10 +8,10 @@ export interface SchoolProgram {
 }
 
 export interface VerifiedMetric {
-  schoolId:string; event:string; gender:"Men"|"Women"; rosterAverage:number; sampleSize:number; sourceUrl:string; sourceLabel:string; reviewedAt:string;
+  schoolId:string; event:string; gender:"Men"|"Women"; rosterAverage:number; sampleSize:number; season:string; sourceUrl:string; sourceLabel:string; reviewedAt:string;
 }
 
 export const schoolCatalog = directory as SchoolProgram[];
 
 // Generated from athlete-level season bests; missing metrics remain null instead of being estimated.
-export const verifiedMetrics = metrics.map(metric=>({...metric,gender:"Men" as const})) as VerifiedMetric[];
+export const verifiedMetrics = metrics as VerifiedMetric[];
