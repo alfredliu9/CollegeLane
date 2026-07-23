@@ -8,6 +8,8 @@ function safeNext(value:string|null,fallback:string){
 export async function GET(request:Request){
   const url=new URL(request.url);
   try{
+    const providerError=url.searchParams.get("error_description");
+    if(providerError)throw new Error(providerError);
     const code=url.searchParams.get("code");
     if(!code)throw new Error("The sign-in link is missing its authorization code.");
     const {client,pending}=createRequestClient(request);
