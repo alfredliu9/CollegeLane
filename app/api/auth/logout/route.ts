@@ -9,7 +9,7 @@ export async function GET(request:Request){
     pending=state.pending;
     await state.client.auth.signOut();
   }catch{}
-  const response=Response.redirect(new URL("/login",request.url),302);
+  const response=new Response(null,{status:302,headers:{Location:new URL("/login",request.url).toString()}});
   response.headers.append("Set-Cookie",clearSessionCookie());
   cookieHeaders(pending).forEach(value=>response.headers.append("Set-Cookie",value));
   response.headers.set("Cache-Control","private, no-store");

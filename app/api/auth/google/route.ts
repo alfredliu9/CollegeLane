@@ -11,7 +11,7 @@ export async function GET(request:Request){
     callback.searchParams.set("next",safeNext(new URL(request.url).searchParams.get("next")));
     const {data,error}=await client.auth.signInWithOAuth({provider:"google",options:{redirectTo:callback.toString(),skipBrowserRedirect:true}});
     if(error||!data.url)throw error||new Error("Google sign-in is unavailable.");
-    const response=Response.redirect(data.url,302);
+    const response=new Response(null,{status:302,headers:{Location:data.url}});
     cookieHeaders(pending).forEach(value=>response.headers.append("Set-Cookie",value));
     response.headers.set("Cache-Control","private, no-store");
     return response;

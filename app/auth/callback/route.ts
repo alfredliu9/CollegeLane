@@ -16,7 +16,7 @@ export async function GET(request:Request){
     const user=await resolveOrCreateAppUser({id:data.user.id,email:data.user.email});
     const session=await createSession(user.id);
     const destination=safeNext(url.searchParams.get("next"),user.isNew?"/onboarding":"/dashboard");
-    const response=Response.redirect(new URL(user.isNew?"/onboarding":destination,request.url),302);
+    const response=new Response(null,{status:302,headers:{Location:new URL(user.isNew?"/onboarding":destination,request.url).toString()}});
     response.headers.append("Set-Cookie",sessionCookie(session.raw,session.maxAge));
     cookieHeaders(pending).forEach(value=>response.headers.append("Set-Cookie",value));
     response.headers.set("Cache-Control","private, no-store");
