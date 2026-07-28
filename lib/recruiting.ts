@@ -64,35 +64,24 @@ export const emptyAthlete: AthleteProfile = {
   pathways: [], goals: [], goalNotes: "", upcomingMeet: ""
 };
 
-const levels: Record<EventName, number[]> = {
-  "100 metres": [13.2, 12.4, 11.8, 11.3],
-  "200 metres": [27.2, 25.5, 24.1, 22.8],
-  "400 metres": [61.5, 57.5, 53.5, 50.5],
-  "Long jump": [5.0, 5.7, 6.25, 6.8],
-  "Triple jump": [10.6, 11.8, 12.8, 13.8],
-};
-
 export function isRunningEvent(event: EventName) { return event.includes("metres"); }
 export function unitFor(event: EventName) { return isRunningEvent(event) ? "s" : "m"; }
 export function formatPerformance(profile: AthleteProfile) { return `${profile.performance.toFixed(2)} ${unitFor(profile.event)}`; }
 
 export function assess(profile: AthleteProfile) {
-  const marks = levels[profile.event];
-  const running = isRunningEvent(profile.event);
-  const score = marks.reduce((total, mark) => total + ((running ? profile.performance <= mark : profile.performance >= mark) ? 1 : 0), 0);
-  const index = running
-    ? profile.performance <= marks[3] ? 4 : profile.performance <= marks[2] ? 3 : profile.performance <= marks[1] ? 2 : profile.performance <= marks[0] ? 1 : 0
-    : score;
+  // Derived from the same gender- and event-specific model as collegeRating so
+  // the label is calibrated by gender (no unisex benchmarks).
+  const index = collegeRating(profile).stars - 1;
   const labels: AssessmentLabel[] = ["Exploring", "Developing", "Potential fit", "Competitive", "Highly competitive"];
   const label = labels[index];
   const pathways = index >= 4 ? "highly competitive programs across several pathways" : index === 3 ? "select U Sports and NCAA programs" : index === 2 ? "developing U Sports, NCAA Division II, and Division III opportunities" : "development-focused programs and continued performance growth";
   return {
     label,
     headline: label === "Potential fit" ? "Potential fit at select programs" : `${label} collegiate profile`,
-    explanation: `${profile.name}'s ${formatPerformance(profile)} ${profile.season.toLowerCase()} ${profile.event.toLowerCase()} result suggests it is worth researching ${pathways}. This estimate uses broad prototype benchmarks; roster needs, academics, verified results, and recruiting year still matter.`,
+    explanation: `${profile.name}'s ${formatPerformance(profile)} ${profile.season.toLowerCase()} ${profile.event.toLowerCase()} result suggests it is worth researching ${pathways}. This estimate uses gender and event specific collegiate reference marks. Roster needs, academics, verified results, and recruiting year still matter.`,
     index,
     pathways,
-    nextSteps: ["Keep your performance details current", "Build a balanced list of 8–12 programs", `Prepare outreach using your ${formatPerformance(profile)} result`],
+    nextSteps: ["Keep your performance details current", "Build a balanced list of 8 to 12 programs", `Prepare outreach using your ${formatPerformance(profile)} result`],
   };
 }
 
@@ -101,9 +90,17 @@ export function profileCompletion(p: AthleteProfile) {
   return Math.round(values.filter(Boolean).length / values.length * 100);
 }
 
+// Gender- and event-specific reference marks (outdoor, FAT) for the six rating
+// tiers Emerging -> Elite, mapping to the scores [40,55,70,82,92,100] below.
+// Tiers 5-6 are pinned to NCAA Division I provisional/automatic outdoor
+// standards; tiers 2-4 to NCSA division recruiting standards (D3/D2/D1),
+// cross-checked against TNS/TFRRS; tier 1 is set just below the lowest listed
+// collegiate mark. U SPORTS (its nationals are indoor-only) is folded onto the
+// same scale by level equivalence. Current-cycle approximations, reviewed
+// 2026-07; sources: NCAA D1/D2 qualifying standards, ncsasports.org standards.
 const ratingBands:Record<"Men"|"Women",Record<EventName,number[]>>={
-  Men:{"100 metres":[12.8,12,11.4,10.9,10.5,10.1],"200 metres":[26,24,22.8,21.8,21,20.2],"400 metres":[59,55,51.5,49,47,44.5],"Long jump":[5.5,6,6.5,7,7.5,8.1],"Triple jump":[11,12,13,14,15,16.5]},
-  Women:{"100 metres":[14.5,13.3,12.5,11.9,11.5,10.9],"200 metres":[29.5,27,25.2,24,23.2,22.2],"400 metres":[68,62,58,55,52.5,49.5],"Long jump":[4.5,5,5.5,5.9,6.3,6.8],"Triple jump":[9.5,10.5,11.5,12.3,13.1,14.2]}
+  Men:{"100 metres":[11.60,11.30,10.95,10.60,10.25,10.05],"200 metres":[23.80,22.90,21.80,21.20,20.75,20.40],"400 metres":[52.50,51.00,48.50,47.20,46.50,45.50],"Long jump":[6.30,6.70,7.10,7.40,7.60,7.85],"Triple jump":[12.50,13.30,14.20,15.10,15.75,16.20]},
+  Women:{"100 metres":[13.10,12.60,12.20,11.80,11.40,11.15],"200 metres":[26.80,25.60,24.60,23.90,23.50,23.00],"400 metres":[62.50,60.00,56.50,54.50,53.50,52.00],"Long jump":[4.90,5.30,5.70,6.00,6.20,6.50],"Triple jump":[10.20,11.00,11.70,12.30,13.25,13.75]}
 };
 
 export function collegeRating(profile:AthleteProfile){
