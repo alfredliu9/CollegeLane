@@ -24,10 +24,16 @@ export default function EmailBuilderPage() {
   const [school, setSchool] = useState<SchoolChoice | null>(null);
 
   const [coaches, setCoaches] = useState<CoachChoice[]>([]);
-  const [coachError, setCoachError] = useState("");
   const [loadingCoaches, setLoadingCoaches] = useState(false);
   const [coachFilter, setCoachFilter] = useState("");
   const [selected, setSelected] = useState<CoachChoice[]>([]);
+
+  // Manually added recipients. These always count as recipients so the draft is
+  // usable even when the automatic coach lookup is off or finds nobody.
+  const [manualRecipients, setManualRecipients] = useState<CoachChoice[]>([]);
+  const [manualName, setManualName] = useState("");
+  const [manualEmail, setManualEmail] = useState("");
+  const [manualRole, setManualRole] = useState("");
 
   const [uploading, setUploading] = useState<"" | "video" | "transcript">("");
   const [uploadError, setUploadError] = useState("");
@@ -63,19 +69,22 @@ export default function EmailBuilderPage() {
     setSchoolResults([]);
     setCoaches([]);
     setSelected([]);
+    setManualRecipients([]);
+    setManualName("");
+    setManualEmail("");
+    setManualRole("");
     setCoachFilter("");
-    setCoachError("");
     setCopied(false);
     setLoadingCoaches(true);
     fetch(`/api/coaches?schoolId=${encodeURIComponent(next.id)}`)
       .then(async (r) => {
-        const data = (await r.json().catch(() => ({}))) as { coaches?: CoachChoice[]; error?: string };
-        if (!r.ok) throw new Error(data.error || "Coach lookup is temporarily unavailable.");
-        const list = data.coaches || [];
-        setCoaches(list);
-        if (!list.length) setCoachError("No coaches were listed on this program's official staff pages yet.");
+        const data = (await r.json().catch(() => ({}))) as { coaches?: CoachChoice[] };
+        // A 503/502 (no OPENAI_API_KEY, or a lookup failure) is not a dead end:
+        // we simply fall back to an empty list and let the athlete add coaches
+        // by hand. Only a genuine list of coaches populates the picker.
+        setCoaches(r.ok ? data.coaches || [] : []);
       })
-      .catch((e: unknown) => setCoachError(e instanceof Error ? e.message : "Coach lookup could not be completed."))
+      .catch(() => setCoaches([]))
       .finally(() => setLoadingCoaches(false));
   }
 
@@ -85,14 +94,39 @@ export default function EmailBuilderPage() {
     setSchoolResults([]);
     setCoaches([]);
     setSelected([]);
+    setManualRecipients([]);
+    setManualName("");
+    setManualEmail("");
+    setManualRole("");
     setCoachFilter("");
-    setCoachError("");
     setCopied(false);
   }
 
   function toggleCoach(coach: CoachChoice) {
     setCopied(false);
     setSelected((prev) => (prev.some((c) => c.id === coach.id) ? prev.filter((c) => c.id !== coach.id) : [...prev, coach]));
+  }
+
+  function addManualRecipient() {
+    const name = manualName.trim();
+    if (!name) return;
+    const recipient: CoachChoice = {
+      id: `manual-${crypto.randomUUID()}`,
+      name,
+      role: manualRole.trim(),
+      email: manualEmail.trim(),
+      sourceUrl: "",
+    };
+    setManualRecipients((prev) => [...prev, recipient]);
+    setManualName("");
+    setManualEmail("");
+    setManualRole("");
+    setCopied(false);
+  }
+
+  function removeManualRecipient(id: string) {
+    setManualRecipients((prev) => prev.filter((r) => r.id !== id));
+    setCopied(false);
   }
 
   async function upload(kind: "video" | "transcript", file?: File) {
@@ -124,9 +158,13 @@ export default function EmailBuilderPage() {
     return coaches.filter((c) => `${c.name} ${c.role}`.toLowerCase().includes(q));
   }, [coaches, coachFilter]);
 
+  // Everyone the draft should be addressed to: checked coaches plus anyone the
+  // athlete added by hand.
+  const recipients = useMemo(() => [...selected, ...manualRecipients], [selected, manualRecipients]);
+
   const fullName = `${athlete.name || "[Athlete name]"} ${athlete.lastName || ""}`.trim();
-  const greeting = selected.length
-    ? selected.map((c) => `Coach ${c.name.split(" ").pop()}`).join(" and ")
+  const greeting = recipients.length
+    ? recipients.map((c) => `Coach ${c.name.split(" ").pop()}`).join(" and ")
     : "Coach";
   const attachmentLine = (() => {
     const parts: string[] = [];
@@ -136,7 +174,7 @@ export default function EmailBuilderPage() {
   })();
 
   const subject = `${athlete.gradYear} ${athlete.event} recruit: ${fullName} (${formatPerformance(athlete)})`;
-  const toLine = selected.map((c) => c.email || c.name).join(", ");
+  const toLine = recipients.map((c) => c.email || c.name).join(", ");
   const body =
     `Dear ${greeting},\n\n` +
     `My name is ${fullName}, a ${athlete.gradYear} student-athlete at ${athlete.school || "[High school]"}. ` +
@@ -148,7 +186,9 @@ export default function EmailBuilderPage() {
     `Thank you for your time and consideration,\n${fullName}\nClass of ${athlete.gradYear}`;
 
   const wordCount = body.trim().split(/\s+/).length;
-  const canCopy = Boolean(school) && selected.length > 0;
+  // The draft always generates from the profile plus a chosen school. Recipients
+  // are optional: with none, it politely addresses "Coach".
+  const canCopy = Boolean(school);
 
   async function copyDraft() {
     try {
@@ -175,7 +215,7 @@ export default function EmailBuilderPage() {
             <div>
               <h2 className="h2">Program and recipients</h2>
               <p className="muted" style={{ fontSize: 13, marginTop: 4 }}>
-                Search for a school, then select one or more coaches verified from its official athletics staff pages.
+                Search for a school, then pick the coaches to address. You can also add a coach by hand if the lookup does not find them.
               </p>
             </div>
 
@@ -255,17 +295,24 @@ export default function EmailBuilderPage() {
 
             {school && (
               <>
-                <Field label="Filter coaches">
-                  <Input
-                    value={coachFilter}
-                    onChange={(e) => setCoachFilter(e.target.value)}
-                    placeholder="Filter by name or event group"
-                    disabled={loadingCoaches || coaches.length === 0}
-                  />
-                </Field>
+                {coaches.length > 0 && (
+                  <Field label="Filter coaches">
+                    <Input
+                      value={coachFilter}
+                      onChange={(e) => setCoachFilter(e.target.value)}
+                      placeholder="Filter by name or event group"
+                      disabled={loadingCoaches}
+                    />
+                  </Field>
+                )}
 
                 {loadingCoaches && <Notice>Checking the official athletics staff directory…</Notice>}
-                {!loadingCoaches && coachError && <Notice tone="warn">{coachError}</Notice>}
+
+                {!loadingCoaches && coaches.length === 0 && (
+                  <Notice>
+                    Automatic coach lookup is off. Add a coach manually, or find them on the school&apos;s athletics staff page.
+                  </Notice>
+                )}
 
                 {!loadingCoaches && visibleCoaches.length > 0 && (
                   <div className="stack" style={{ gap: 8 }}>
@@ -300,6 +347,71 @@ export default function EmailBuilderPage() {
                 )}
                 {!loadingCoaches && coaches.length > 0 && visibleCoaches.length === 0 && (
                   <p className="hint">No coaches match “{coachFilter}”.</p>
+                )}
+
+                {/* Manual recipients: available whether or not the lookup found anyone. */}
+                {!loadingCoaches && (
+                  <div className="stack" style={{ gap: 10 }}>
+                    <div>
+                      <h3 className="h3">Add a coach manually</h3>
+                      <p className="hint" style={{ marginTop: 4 }}>
+                        Add anyone the lookup missed. Name is required, email and role are optional.
+                      </p>
+                    </div>
+
+                    <Field label="Coach name">
+                      <Input
+                        value={manualName}
+                        onChange={(e) => setManualName(e.target.value)}
+                        placeholder="e.g. Alex Carter"
+                        aria-label="Coach name"
+                      />
+                    </Field>
+                    <div className="grid-2">
+                      <Field label="Email (optional)">
+                        <Input
+                          type="email"
+                          value={manualEmail}
+                          onChange={(e) => setManualEmail(e.target.value)}
+                          placeholder="coach@school.edu"
+                          aria-label="Coach email"
+                        />
+                      </Field>
+                      <Field label="Role (optional)">
+                        <Input
+                          value={manualRole}
+                          onChange={(e) => setManualRole(e.target.value)}
+                          placeholder="e.g. Jumps coach"
+                          aria-label="Coach role"
+                        />
+                      </Field>
+                    </div>
+                    <div>
+                      <Button variant="secondary" size="sm" onClick={addManualRecipient} disabled={!manualName.trim()}>
+                        Add coach
+                      </Button>
+                    </div>
+
+                    {manualRecipients.length > 0 && (
+                      <div className="stack" style={{ gap: 8 }}>
+                        {manualRecipients.map((r) => (
+                          <div
+                            key={r.id}
+                            className="between"
+                            style={{ border: "1px solid var(--brand)", borderRadius: "var(--radius-sm)", padding: "10px 12px" }}
+                          >
+                            <span style={{ flex: 1 }}>
+                              <b style={{ fontSize: 14 }}>{r.name}</b>
+                              <div className="hint">{[r.role || "Added manually", r.email].filter(Boolean).join(" · ")}</div>
+                            </span>
+                            <Button variant="ghost" size="sm" onClick={() => removeManualRecipient(r.id)}>
+                              Remove
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 )}
               </>
             )}
@@ -380,8 +492,8 @@ export default function EmailBuilderPage() {
               <Badge tone="muted">Read-only · {wordCount} words</Badge>
             </div>
 
-            <Field label="To">
-              <Input value={toLine} placeholder="Select at least one coach" readOnly />
+            <Field label="To" hint="Add or select a coach to address it by name. Leave blank and it opens with “Coach”.">
+              <Input value={toLine} placeholder="No recipients yet" readOnly />
             </Field>
             <Field label="Subject">
               <Input value={subject} readOnly />
