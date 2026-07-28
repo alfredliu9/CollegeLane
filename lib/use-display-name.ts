@@ -1,27 +1,36 @@
 "use client";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { useAccount } from "@/components/account-context";
 
-// The athlete's display first-name from their Supabase identity — Google's
-// full_name / name / given_name, falling back to the email local-part. Empty
-// string until the user loads. Use for greetings and to pre-fill the name field.
+function firstNameOf(full: string, email: string) {
+  const f = (full || "").trim();
+  return f ? f.split(/\s+/)[0] : (email || "").split("@")[0];
+}
+
+// The athlete's display first-name. Inside the signed-in (app) shell this comes
+// from server-provided context (instant, no round-trip). Elsewhere (e.g. the
+// full-screen onboarding route) it falls back to a client-side identity lookup.
 export function useDisplayName() {
-  const [name, setName] = useState<string>("");
+  const account = useAccount();
+  const [fallback, setFallback] = useState("");
+
   useEffect(() => {
+    if (account) return; // already have it from context
     let alive = true;
     createClient()
       .auth.getUser()
       .then(({ data: { user } }) => {
         if (!alive || !user) return;
         const meta = (user.user_metadata || {}) as Record<string, unknown>;
-        const full = String(meta.full_name || meta.name || meta.given_name || "").trim();
-        const first = full ? full.split(/\s+/)[0] : (user.email || "").split("@")[0];
-        setName(first);
+        setFallback(firstNameOf(String(meta.full_name || meta.name || meta.given_name || ""), user.email || ""));
       })
       .catch(() => {});
     return () => {
       alive = false;
     };
-  }, []);
-  return name;
+  }, [account]);
+
+  if (account) return firstNameOf(account.name, account.email);
+  return fallback;
 }
