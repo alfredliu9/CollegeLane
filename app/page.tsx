@@ -58,7 +58,7 @@ export default function Home() {
           display: flex; align-items: center; justify-content: space-between; gap: 16px;
         }
         .cl-brand { display: inline-flex; align-items: center; }
-        .cl-brand img { width: 130px; height: auto; }
+        .cl-brand img { width: 108px; height: auto; }
         .cl-nav { display: flex; align-items: center; gap: 6px; }
         .cl-nav-sep {
           width: 1px; height: 22px; background: var(--line); margin: 0 6px;
