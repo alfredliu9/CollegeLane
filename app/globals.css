@@ -22,8 +22,8 @@
   --radius-sm: 9px;
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 14px 34px -16px rgba(0, 0, 0, 0.7);
-  --font: var(--font-sans), system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
-  --font-head: var(--font-display), var(--font-sans), system-ui, sans-serif;
+  --font: var(--font-body), system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  --font-head: var(--font-heading), var(--font-body), system-ui, sans-serif;
 }
 
 * { box-sizing: border-box; }

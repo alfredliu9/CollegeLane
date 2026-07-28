@@ -3,13 +3,13 @@ import { Manrope, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 
 const sans = Manrope({
-  variable: "--font-sans",
+  variable: "--font-body",
   subsets: ["latin"],
   display: "swap",
 });
 
 const display = Space_Grotesk({
-  variable: "--font-display",
+  variable: "--font-heading",
   subsets: ["latin"],
   display: "swap",
 });
@@ -30,10 +30,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body
-        className={`${sans.variable} ${display.variable} antialiased`}
-      >
+    <html lang="en" className={`${sans.variable} ${display.variable}`}>
+      <body className="antialiased">
         {children}
       </body>
     </html>
