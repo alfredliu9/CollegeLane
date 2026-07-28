@@ -1,37 +1,26 @@
-import {createServerClient,type CookieOptions} from "@supabase/ssr";
-import {supabaseConfig} from "./config";
+import "server-only";
+import { createServerClient } from "@supabase/ssr";
+import { cookies } from "next/headers";
+import { supabaseConfig } from "./config";
 
-type PendingCookie={name:string;value:string;options:CookieOptions};
-
-function parseCookies(request:Request){
-  return (request.headers.get("cookie")||"").split(";").map(value=>value.trim()).filter(Boolean).map(pair=>{
-    const separator=pair.indexOf("=");
-    return {name:separator<0?pair:pair.slice(0,separator),value:separator<0?"":decodeURIComponent(pair.slice(separator+1))};
-  });
-}
-
-export function createRequestClient(request:Request){
-  const {url,publishableKey}=supabaseConfig();
-  const pending:PendingCookie[]=[];
-  const initial=parseCookies(request);
-  const client=createServerClient(url,publishableKey,{
-    cookies:{
-      getAll(){return initial;},
-      setAll(values){pending.push(...values);},
+// Request-scoped Supabase client for Server Components and Route Handlers.
+// Reads/writes the auth session through Next's cookie store; session refresh in
+// Server Components is handled by middleware (which can write cookies).
+export async function createClient() {
+  const cookieStore = await cookies();
+  const { url, publishableKey } = supabaseConfig();
+  return createServerClient(url, publishableKey, {
+    cookies: {
+      getAll() {
+        return cookieStore.getAll();
+      },
+      setAll(cookiesToSet) {
+        try {
+          cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options));
+        } catch {
+          // Called from a Server Component render — middleware refreshes the session.
+        }
+      },
     },
-  });
-  return {client,pending};
-}
-
-export function cookieHeaders(pending:PendingCookie[]){
-  return pending.map(({name,value,options})=>{
-    const parts=[`${name}=${encodeURIComponent(value)}`];
-    if(options.maxAge!==undefined)parts.push(`Max-Age=${options.maxAge}`);
-    if(options.domain)parts.push(`Domain=${options.domain}`);
-    parts.push(`Path=${options.path||"/"}`);
-    if(options.httpOnly)parts.push("HttpOnly");
-    if(options.secure!==false)parts.push("Secure");
-    if(options.sameSite)parts.push(`SameSite=${typeof options.sameSite==="string"?options.sameSite:"Lax"}`);
-    return parts.join("; ");
   });
 }

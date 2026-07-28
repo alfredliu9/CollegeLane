@@ -1,31 +1,30 @@
-import {createSession,resolveOrCreateAppUser,sessionCookie} from "@/lib/auth";
-import {cookieHeaders,createRequestClient} from "@/lib/supabase/server";
+import { NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase/server";
 
-function safeNext(value:string|null,fallback:string){
-  return value&&value.startsWith("/")&&!value.startsWith("//")?value:fallback;
+function safeNext(value: string | null, fallback: string) {
+  return value && value.startsWith("/") && !value.startsWith("//") ? value : fallback;
 }
 
-export async function GET(request:Request){
-  const url=new URL(request.url);
-  try{
-    const providerError=url.searchParams.get("error_description");
-    if(providerError)throw new Error(providerError);
-    const code=url.searchParams.get("code");
-    if(!code)throw new Error("The sign-in link is missing its authorization code.");
-    const {client,pending}=createRequestClient(request);
-    const {data,error}=await client.auth.exchangeCodeForSession(code);
-    if(error||!data.user?.email)throw error||new Error("A verified email address is required.");
-    const user=await resolveOrCreateAppUser({id:data.user.id,email:data.user.email});
-    const session=await createSession(user.id);
-    const destination=safeNext(url.searchParams.get("next"),user.isNew?"/onboarding":"/dashboard");
-    const response=new Response(null,{status:302,headers:{Location:new URL(user.isNew?"/onboarding":destination,request.url).toString()}});
-    response.headers.append("Set-Cookie",sessionCookie(session.raw,session.maxAge));
-    cookieHeaders(pending).forEach(value=>response.headers.append("Set-Cookie",value));
-    response.headers.set("Cache-Control","private, no-store");
-    return response;
-  }catch(error){
-    const destination=new URL("/login",request.url);
-    destination.searchParams.set("error",error instanceof Error?error.message:"Unable to complete sign-in.");
-    return Response.redirect(destination,302);
+// OAuth (Google) + PKCE code exchange. Supabase sets the session cookies via the
+// server client's cookie adapter; then we redirect into the app.
+export async function GET(request: Request) {
+  const url = new URL(request.url);
+  const providerError = url.searchParams.get("error_description");
+  const code = url.searchParams.get("code");
+  const next = safeNext(url.searchParams.get("next"), "/dashboard");
+
+  if (providerError || !code) {
+    const dest = new URL("/login", url.origin);
+    dest.searchParams.set("error", providerError || "The sign-in link is missing its authorization code.");
+    return NextResponse.redirect(dest);
   }
+
+  const supabase = await createClient();
+  const { error } = await supabase.auth.exchangeCodeForSession(code);
+  if (error) {
+    const dest = new URL("/login", url.origin);
+    dest.searchParams.set("error", error.message);
+    return NextResponse.redirect(dest);
+  }
+  return NextResponse.redirect(new URL(next, url.origin));
 }

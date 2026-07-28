@@ -175,7 +175,7 @@ export async function recommendSchools(profile:AthleteProfile,limit=12):Promise<
   if(profile.gender!=="Men"&&profile.gender!=="Women")warnings.push("Select your competition gender before requesting recommendations.");
   if(profile.gender==="Women")warnings.push("We do not yet have enough verified women’s roster data to recommend schools for this profile. You can still search the complete directory.");
   if(!results.length)warnings.push("Add at least one legal-wind, fully automatic outdoor result to receive recommendations.");
-  const scored=profile.gender==="Men"&&results.length?eligible.map(school=>scoreSchool(profile,school,results)).filter((item):item is Recommendation=>item!==null):[];
+  const scored:Recommendation[]=profile.gender==="Men"&&results.length?(eligible.map(school=>scoreSchool(profile,school,results)).filter(item=>item!==null) as Recommendation[]):[];
   const ranked=compose(scored,Math.max(1,Math.min(24,limit)));
   if(scored.length&&scored.filter(item=>item.dataConfidence!=="Low").length<limit)warnings.push("Verified sample coverage is limited for this profile; some categories may contain fewer recommendations.");
   if(!scored.length&&!warnings.length)warnings.push("We do not yet have enough verified data to recommend schools for this profile. You can still search the complete directory.");
