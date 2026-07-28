@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { Badge, Button, Card, Field, Input, Notice, PageHead, Textarea } from "@/components/ui";
 import { useAccountState } from "@/lib/account-state";
 import { emptyAthlete, formatPerformance, type AthleteProfile } from "@/lib/recruiting";
@@ -7,6 +8,19 @@ import { emptyAthlete, formatPerformance, type AthleteProfile } from "@/lib/recr
 type SchoolChoice = { id: string; name: string; city: string; region: string; division: string; pathway: string };
 type CoachChoice = { id: string; name: string; role: string; email: string; sourceUrl: string };
 type Upload = { id: string; kind: "video" | "transcript"; filename: string; size: number; url: string };
+
+// Mirrors the record shape read/written by app/(app)/outreach/page.tsx under the
+// same "cl-outreach" account key. Kept in sync by hand (the two pages do not
+// share a module) so a row added here is indistinguishable from one added there.
+type OutreachStatus = "Researching" | "Contacted" | "Coach responded" | "Follow-up required" | "Committed";
+type OutreachRecord = {
+  id: number;
+  school: string;
+  coach: string;
+  contacted: string;
+  status: OutreachStatus;
+  followUp: string;
+};
 
 function formatBytes(bytes: number) {
   if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
@@ -17,6 +31,8 @@ function formatBytes(bytes: number) {
 export default function EmailBuilderPage() {
   const { data: athlete } = useAccountState<AthleteProfile>("cl-athlete", emptyAthlete);
   const { data: uploads, save: saveUploads } = useAccountState<Upload[]>("cl-email-uploads", []);
+  // Same account key the outreach tracker reads, so a row added here shows up there.
+  const { data: outreach, save: saveOutreach } = useAccountState<OutreachRecord[]>("cl-outreach", []);
 
   const [schoolQuery, setSchoolQuery] = useState("");
   const [schoolResults, setSchoolResults] = useState<SchoolChoice[]>([]);
@@ -38,6 +54,9 @@ export default function EmailBuilderPage() {
   const [uploading, setUploading] = useState<"" | "video" | "transcript">("");
   const [uploadError, setUploadError] = useState("");
   const [copied, setCopied] = useState(false);
+  // School+coach combinations added to the tracker this session, so the same
+  // draft cannot be logged twice.
+  const [addedOutreachKeys, setAddedOutreachKeys] = useState<string[]>([]);
 
   // Debounced school search (skips once a school is chosen).
   useEffect(() => {
@@ -163,9 +182,14 @@ export default function EmailBuilderPage() {
   const recipients = useMemo(() => [...selected, ...manualRecipients], [selected, manualRecipients]);
 
   const fullName = `${athlete.name || "[Athlete name]"} ${athlete.lastName || ""}`.trim();
-  const greeting = recipients.length
-    ? recipients.map((c) => `Coach ${c.name.split(" ").pop()}`).join(" and ")
-    : "Coach";
+  // One coach: address them by surname ("Dear Coach Carter,"). Several: a single
+  // polite plural ("Dear Coaches,"). None chosen yet: a neutral "Dear Coach,".
+  const greeting =
+    recipients.length === 0
+      ? "Coach"
+      : recipients.length === 1
+        ? `Coach ${recipients[0].name.split(" ").pop()}`
+        : "Coaches";
   const attachmentLine = (() => {
     const parts: string[] = [];
     if (uploads.some((u) => u.kind === "video")) parts.push("a competition video");
@@ -175,6 +199,15 @@ export default function EmailBuilderPage() {
 
   const subject = `${athlete.gradYear} ${athlete.event} recruit: ${fullName} (${formatPerformance(athlete)})`;
   const toLine = recipients.map((c) => c.email || c.name).join(", ");
+
+  // How the coaches read in the outreach tracker's "coach" column.
+  const coachLabel = recipients.length ? recipients.map((c) => c.name).join(", ") : "Coaching staff";
+  const outreachKey = school ? `${school.name}||${coachLabel}` : "";
+  const alreadyTracked = Boolean(
+    school &&
+      (addedOutreachKeys.includes(outreachKey) ||
+        outreach.some((r) => r.school === school.name && r.coach === coachLabel)),
+  );
   const body =
     `Dear ${greeting},\n\n` +
     `My name is ${fullName}, a ${athlete.gradYear} student-athlete at ${athlete.school || "[High school]"}. ` +
@@ -197,6 +230,21 @@ export default function EmailBuilderPage() {
     } catch {
       setCopied(false);
     }
+  }
+
+  function addToOutreach() {
+    if (!school || alreadyTracked) return;
+    const record: OutreachRecord = {
+      id: Date.now(),
+      school: school.name,
+      coach: coachLabel,
+      // Matches the outreach page's own date + placeholder conventions exactly.
+      contacted: new Date().toLocaleDateString("en-CA", { month: "short", day: "numeric" }),
+      status: "Contacted",
+      followUp: "—",
+    };
+    saveOutreach([...outreach, record]);
+    setAddedOutreachKeys((prev) => (prev.includes(outreachKey) ? prev : [...prev, outreachKey]));
   }
 
   return (
@@ -523,6 +571,23 @@ export default function EmailBuilderPage() {
                 Reset
               </Button>
             </div>
+
+            {/* Once the draft is copied, offer to log the contact in the tracker. */}
+            {copied && school &&
+              (alreadyTracked ? (
+                <Notice>
+                  Added to outreach.{" "}
+                  <Link className="link" href="/outreach">
+                    View your outreach tracker
+                  </Link>
+                </Notice>
+              ) : (
+                <div>
+                  <Button variant="secondary" onClick={addToOutreach}>
+                    Add {school.name} to your outreach tracker
+                  </Button>
+                </div>
+              ))}
 
             <Notice>
               CollegeLane does not send email. Copy this draft into your own email client, review the coach addresses against the
