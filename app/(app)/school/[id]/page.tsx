@@ -6,7 +6,7 @@ import { useParams } from "next/navigation";
 import { Badge, Button, Card, Empty, Notice, PageHead, Textarea } from "@/components/ui";
 import { useAccountState } from "@/lib/account-state";
 import {
-  defaultAthlete,
+  emptyAthlete,
   formatPerformance,
   isRunningEvent,
   unitFor,
@@ -56,7 +56,7 @@ export default function SchoolDetailPage() {
   const params = useParams<{ id: string }>();
   const id = params.id;
 
-  const { data: athlete } = useAccountState<AthleteProfile>("cl-athlete", defaultAthlete);
+  const { data: athlete } = useAccountState<AthleteProfile>("cl-athlete", emptyAthlete);
   const { data: saved, save: saveSaved, loading: savedLoading } = useAccountState<string[]>("cl-schools", []);
   const { data: note, save: saveNote } = useAccountState<string>(`cl-note-${id}`, "");
 

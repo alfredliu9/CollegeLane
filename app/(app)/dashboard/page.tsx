@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Badge, Button, Card, Empty, PageHead, Progress, Stat } from "@/components/ui";
 import { useAccountState } from "@/lib/account-state";
-import { assess, collegeRating, defaultAthlete, formatPerformance, profileCompletion } from "@/lib/recruiting";
+import { assess, collegeRating, emptyAthlete, formatPerformance, profileCompletion } from "@/lib/recruiting";
+import { useDisplayName } from "@/lib/use-display-name";
 
 /* Signed-in home. Reads the saved athlete profile plus recruiting progress and
    surfaces an educational snapshot: assessment summary, profile completion,
@@ -45,9 +46,10 @@ function Stars({ count }: { count: number }) {
 }
 
 export default function DashboardPage() {
-  const { data: profile, loading } = useAccountState("cl-athlete", defaultAthlete);
+  const { data: profile, loading } = useAccountState("cl-athlete", emptyAthlete);
   const { data: doneTasks } = useAccountState<number[]>("cl-tasks", []);
   const { data: savedIds } = useAccountState<string[]>("cl-schools", []);
+  const displayName = useDisplayName();
 
   const [schools, setSchools] = useState<SavedSchool[]>([]);
   const [schoolsLoading, setSchoolsLoading] = useState(true);
@@ -100,7 +102,10 @@ export default function DashboardPage() {
   const completion = profileCompletion(profile);
   const doneCount = doneTasks.length;
   const planPercent = Math.round((doneCount / PLAN_STEPS) * 100);
-  const profileEmpty = !profile.gender || !profile.event;
+  // A profile is only "ready" once the athlete has actually set it up. Until
+  // then we never greet with "Welcome back" or surface computed marks/ratings,
+  // which would otherwise render as fake data for a brand-new account.
+  const profileReady = Boolean(profile.gender) && Boolean(profile.event) && profile.performance > 0;
 
   const actions = [
     completion < 100
@@ -112,14 +117,14 @@ export default function DashboardPage() {
 
   return (
     <div className="page">
-      <PageHead eyebrow="Athlete hub" title={`Welcome back${profile.name ? `, ${profile.name}` : ""}.`}>
+      <PageHead eyebrow="Athlete hub" title={`Welcome${profileReady ? " back" : ""}${displayName ? `, ${displayName}` : ""}.`}>
         <p>
           A snapshot of where your track-and-field profile stands today. Everything here is educational research context, not a
           recruiting guarantee.
         </p>
       </PageHead>
 
-      {profileEmpty ? (
+      {!profileReady ? (
         <div style={{ marginBottom: 18 }}>
           <Card>
             <div className="between">
@@ -147,21 +152,23 @@ export default function DashboardPage() {
               </Link>
             </div>
             <div className="row wrap" style={{ alignItems: "flex-end", gap: 18 }}>
-              <div className="big-number">{rating.rating}</div>
+              <div className="big-number">{profileReady ? rating.rating : "—"}</div>
               <div className="stack" style={{ gap: 6, paddingBottom: 6 }}>
-                <Stars count={rating.stars} />
-                <Badge>{shortLabel}</Badge>
+                <Stars count={profileReady ? rating.stars : 0} />
+                <Badge>{profileReady ? shortLabel : "Not assessed yet"}</Badge>
               </div>
             </div>
             <p className="h3" style={{ marginTop: 16 }}>
-              {assessment.headline}
+              {profileReady ? assessment.headline : "Complete your profile to see your assessment"}
             </p>
             <p className="muted" style={{ marginTop: 6 }}>
-              {rating.pathway.charAt(0).toUpperCase() + rating.pathway.slice(1)}.
+              {profileReady
+                ? `${rating.pathway.charAt(0).toUpperCase()}${rating.pathway.slice(1)}.`
+                : "Add your competition gender, primary event, and best result to generate an educational assessment."}
             </p>
             <div className="stats" style={{ marginTop: 18 }}>
-              <Stat value={profile.event} label="Primary event" />
-              <Stat value={formatPerformance(profile)} label="Personal best" />
+              <Stat value={profileReady ? profile.event : "Not set"} label="Primary event" />
+              <Stat value={profile.performance > 0 ? formatPerformance(profile) : "—"} label="Personal best" />
               <Stat value={profile.gender || "Not set"} label="Competition gender" />
             </div>
           </Card>

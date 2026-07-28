@@ -5,18 +5,18 @@
    Brand: deep green + subtle lime accent, generous whitespace.
    ============================================================ */
 :root {
-  --bg: #f6f8f6;
+  --bg: #f5f8fc;
   --surface: #ffffff;
-  --surface-2: #f1f4f1;
-  --ink: #132420;
-  --muted: #5c6a64;
-  --faint: #8a958f;
-  --line: #e5eae6;
-  --brand: #15503c;
-  --brand-ink: #0f3d2d;
-  --brand-soft: #e7f1ec;
-  --accent: #d4f24d;
-  --danger: #b23b3b;
+  --surface-2: #eef2f9;
+  --ink: #16213c;
+  --muted: #5a6784;
+  --faint: #8b96ae;
+  --line: #e3e9f3;
+  --brand: #1f6fd0;
+  --brand-ink: #16294d;
+  --brand-soft: #e9f1fc;
+  --accent: #cfe2fb;
+  --danger: #c0392b;
   --ok: #2f7d57;
   --radius: 14px;
   --radius-sm: 9px;
@@ -57,7 +57,7 @@ img { max-width: 100%; display: block; }
   transition: transform 0.15s cubic-bezier(0.2, 0.8, 0.2, 1), background 0.18s, border-color 0.18s, color 0.18s, box-shadow 0.18s;
 }
 .btn:active { transform: translateY(1px); }
-.btn:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.btn:focus-visible { outline: 3px solid var(--brand); outline-offset: 2px; }
 .btn-primary { background: var(--brand); color: #fff; box-shadow: var(--shadow-sm); }
 .btn-primary:hover { background: var(--brand-ink); }
 .btn-secondary { background: var(--surface); color: var(--ink); border-color: var(--line); }

@@ -5,8 +5,9 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button, Card, Field, Input, Notice, Select, Textarea } from "@/components/ui";
 import { useAccountState } from "@/lib/account-state";
+import { useDisplayName } from "@/lib/use-display-name";
 import {
-  defaultAthlete,
+  emptyAthlete,
   isRunningEvent,
   unitFor,
   type AthleteProfile,
@@ -65,10 +66,12 @@ function emptyResult(event: EventName): AthleteResult {
 
 export default function OnboardingPage() {
   const router = useRouter();
-  const { data, save, loading, saving } = useAccountState<AthleteProfile>("cl-athlete", defaultAthlete);
-  const [form, setForm] = useState<AthleteProfile>(defaultAthlete);
+  const { data, save, loading, saving } = useAccountState<AthleteProfile>("cl-athlete", emptyAthlete);
+  const displayName = useDisplayName();
+  const [form, setForm] = useState<AthleteProfile>(emptyAthlete);
   const [step, setStep] = useState(1);
   const hydrated = useRef(false);
+  const namePrefilled = useRef(false);
 
   useEffect(() => {
     if (!loading && !hydrated.current) {
@@ -76,6 +79,15 @@ export default function OnboardingPage() {
       hydrated.current = true;
     }
   }, [loading, data]);
+
+  // Once the saved profile has loaded, seed the first-name field from the
+  // signed-in identity — but only when it is still empty, and only once, so we
+  // never clobber a saved name or an edit the athlete makes afterward.
+  useEffect(() => {
+    if (loading || !hydrated.current || namePrefilled.current || !displayName) return;
+    namePrefilled.current = true;
+    setForm((prev) => (prev.name ? prev : { ...prev, name: displayName }));
+  }, [loading, displayName]);
 
   const set = <K extends keyof AthleteProfile>(key: K, value: AthleteProfile[K]) =>
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -157,6 +169,7 @@ export default function OnboardingPage() {
                   </Field>
                   <Field label="Province">
                     <Select value={form.province} onChange={(e) => set("province", e.target.value)}>
+                      <option value="">Select province</option>
                       {PROVINCES.map((x) => <option key={x}>{x}</option>)}
                     </Select>
                   </Field>
@@ -167,6 +180,7 @@ export default function OnboardingPage() {
                   </Field>
                   <Field label="Competition category">
                     <Select value={form.category} onChange={(e) => set("category", e.target.value)}>
+                      <option value="">Select category</option>
                       <option>Senior</option>
                       <option>Junior</option>
                     </Select>
@@ -184,7 +198,7 @@ export default function OnboardingPage() {
                 </Field>
                 <div className="grid-2">
                   <Field label={`Personal best (${unitFor(form.event)})`} hint={isRunningEvent(form.event) ? "Enter your time in seconds." : "Enter your mark in metres."}>
-                    <Input type="number" min="0.01" step="0.01" required value={form.performance} onChange={(e) => set("performance", Number(e.target.value))} />
+                    <Input type="number" min="0.01" step="0.01" required value={form.performance || ""} onChange={(e) => set("performance", e.target.value === "" ? 0 : Number(e.target.value))} />
                   </Field>
                   <Field label="Season">
                     <Select value={form.season} onChange={(e) => set("season", e.target.value as AthleteProfile["season"])}>
@@ -273,7 +287,7 @@ export default function OnboardingPage() {
               <>
                 <div className="grid-2">
                   <Field label="Academic average (%)">
-                    <Input type="number" min="0" max="100" value={form.average} onChange={(e) => set("average", Number(e.target.value))} />
+                    <Input type="number" min="0" max="100" placeholder="e.g. 88" value={form.average || ""} onChange={(e) => set("average", e.target.value === "" ? 0 : Number(e.target.value))} />
                   </Field>
                   <Field label="Intended major">
                     <Select value={form.major} onChange={(e) => set("major", e.target.value)}>

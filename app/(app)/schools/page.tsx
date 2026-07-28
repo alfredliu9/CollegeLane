@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Badge, Button, Card, Empty, Field, Input, Notice, PageHead, Select } from "@/components/ui";
 import { useAccountState } from "@/lib/account-state";
 import {
-  defaultAthlete,
+  emptyAthlete,
   formatPerformance,
   isRunningEvent,
   unitFor,
@@ -56,7 +56,7 @@ const PATHWAYS = ["All", "NCAA", "U Sports"] as const;
 const DIVISIONS = ["All divisions", "Division I", "Division II", "Division III"] as const;
 
 export default function SchoolsPage() {
-  const { data: athlete } = useAccountState<AthleteProfile>("cl-athlete", defaultAthlete);
+  const { data: athlete } = useAccountState<AthleteProfile>("cl-athlete", emptyAthlete);
   const { data: saved, save: saveSaved, loading: savedLoading } = useAccountState<string[]>("cl-schools", []);
 
   const [query, setQuery] = useState("");

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { Badge, Button, Card, Notice, PageHead } from "@/components/ui";
 import { useAccountState } from "@/lib/account-state";
-import { assess, collegeRating, defaultAthlete, formatPerformance, unitFor } from "@/lib/recruiting";
+import { assess, collegeRating, emptyAthlete, formatPerformance, unitFor } from "@/lib/recruiting";
 
 /* Full educational assessment. Reads the saved athlete profile and renders
    CollegeLane's own broad rating model: a headline rating with stars, a
@@ -26,7 +26,7 @@ function Stars({ count }: { count: number }) {
 }
 
 export default function AssessmentPage() {
-  const { data: profile, loading } = useAccountState("cl-athlete", defaultAthlete);
+  const { data: profile, loading } = useAccountState("cl-athlete", emptyAthlete);
 
   if (loading) {
     return (

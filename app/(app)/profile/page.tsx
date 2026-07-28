@@ -3,9 +3,10 @@
 import { useEffect, useRef, useState } from "react";
 import { Button, Card, Field, Input, Notice, PageHead, Select, Textarea } from "@/components/ui";
 import { useAccountState } from "@/lib/account-state";
+import { useDisplayName } from "@/lib/use-display-name";
 import {
   assess,
-  defaultAthlete,
+  emptyAthlete,
   isRunningEvent,
   unitFor,
   type AthleteProfile,
@@ -54,10 +55,12 @@ function emptyResult(event: EventName): AthleteResult {
 }
 
 export default function ProfilePage() {
-  const { data, save, loading, saving } = useAccountState<AthleteProfile>("cl-athlete", defaultAthlete);
-  const [form, setForm] = useState<AthleteProfile>(defaultAthlete);
+  const { data, save, loading, saving } = useAccountState<AthleteProfile>("cl-athlete", emptyAthlete);
+  const displayName = useDisplayName();
+  const [form, setForm] = useState<AthleteProfile>(emptyAthlete);
   const [touched, setTouched] = useState(false);
   const hydrated = useRef(false);
+  const namePrefilled = useRef(false);
 
   useEffect(() => {
     if (!loading && !hydrated.current) {
@@ -65,6 +68,16 @@ export default function ProfilePage() {
       hydrated.current = true;
     }
   }, [loading, data]);
+
+  // After the saved profile loads, seed the first-name field from the signed-in
+  // identity when it is still blank. Runs once and only touches an empty name,
+  // so a saved name (or one the athlete edits) is never overwritten. We update
+  // form state only — no auto-save — so this never trips the "saved" status.
+  useEffect(() => {
+    if (loading || !hydrated.current || namePrefilled.current || !displayName) return;
+    namePrefilled.current = true;
+    setForm((prev) => (prev.name ? prev : { ...prev, name: displayName }));
+  }, [loading, displayName]);
 
   const commit = (next: AthleteProfile) => {
     setForm(next);
@@ -88,6 +101,9 @@ export default function ProfilePage() {
     set("secondaryResults", secondary.map((r, i) => (i === index ? { ...r, ...patch } : r)));
 
   const status = saving ? "Saving…" : touched ? "Changes saved" : "Auto-saves as you edit";
+  // Only preview a computed assessment once the athlete has entered the inputs
+  // it depends on, so a brand-new profile never shows a fabricated label.
+  const formReady = Boolean(form.gender) && Boolean(form.event) && form.performance > 0;
 
   return (
     <div className="page">
@@ -124,6 +140,7 @@ export default function ProfilePage() {
               </Field>
               <Field label="Province">
                 <Select value={form.province} onChange={(e) => set("province", e.target.value)}>
+                  <option value="">Select province</option>
                   {PROVINCES.map((x) => <option key={x}>{x}</option>)}
                 </Select>
               </Field>
@@ -134,6 +151,7 @@ export default function ProfilePage() {
               </Field>
               <Field label="Competition category">
                 <Select value={form.category} onChange={(e) => set("category", e.target.value)}>
+                  <option value="">Select category</option>
                   <option>Senior</option>
                   <option>Junior</option>
                 </Select>
@@ -150,7 +168,7 @@ export default function ProfilePage() {
             </Field>
             <div className="grid-2">
               <Field label={`Personal best (${unitFor(form.event)})`} hint={isRunningEvent(form.event) ? "Seconds" : "Metres"}>
-                <Input type="number" min="0.01" step="0.01" required value={form.performance} onChange={(e) => set("performance", Number(e.target.value))} />
+                <Input type="number" min="0.01" step="0.01" required placeholder="Enter result" value={form.performance || ""} onChange={(e) => set("performance", e.target.value === "" ? 0 : Number(e.target.value))} />
               </Field>
               <Field label="Season">
                 <Select value={form.season} onChange={(e) => set("season", e.target.value as AthleteProfile["season"])}>
@@ -234,7 +252,7 @@ export default function ProfilePage() {
             <p className="h2" style={{ marginBottom: 16 }}>Academic information</p>
             <div className="grid-2">
               <Field label="Academic average (%)">
-                <Input type="number" min="0" max="100" value={form.average} onChange={(e) => set("average", Number(e.target.value))} />
+                <Input type="number" min="0" max="100" placeholder="e.g. 88" value={form.average || ""} onChange={(e) => set("average", e.target.value === "" ? 0 : Number(e.target.value))} />
               </Field>
               <Field label="Intended major">
                 <Select value={form.major} onChange={(e) => set("major", e.target.value)}>
@@ -296,7 +314,7 @@ export default function ProfilePage() {
             <p className="h2" style={{ marginBottom: 10 }}>Live impact</p>
             <Notice>Saving recalculates your dashboard, assessment label, school fits, and recommendations.</Notice>
             <p className="muted" style={{ margin: "14px 0 4px", fontSize: 12, fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase" }}>Current assessment</p>
-            <p className="h3">{assess(form).headline}</p>
+            <p className="h3">{formReady ? assess(form).headline : "Add your event and best result to preview your assessment."}</p>
             <div className="divider" />
             <Button type="button" variant="secondary" block disabled>{status}</Button>
           </Card>

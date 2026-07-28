@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Badge, Button, Card, Field, Input, Notice, PageHead, Textarea } from "@/components/ui";
 import { useAccountState } from "@/lib/account-state";
-import { defaultAthlete, formatPerformance, type AthleteProfile } from "@/lib/recruiting";
+import { emptyAthlete, formatPerformance, type AthleteProfile } from "@/lib/recruiting";
 
 type SchoolChoice = { id: string; name: string; city: string; region: string; division: string; pathway: string };
 type CoachChoice = { id: string; name: string; role: string; email: string; sourceUrl: string };
@@ -15,7 +15,7 @@ function formatBytes(bytes: number) {
 }
 
 export default function EmailBuilderPage() {
-  const { data: athlete } = useAccountState<AthleteProfile>("cl-athlete", defaultAthlete);
+  const { data: athlete } = useAccountState<AthleteProfile>("cl-athlete", emptyAthlete);
   const { data: uploads, save: saveUploads } = useAccountState<Upload[]>("cl-email-uploads", []);
 
   const [schoolQuery, setSchoolQuery] = useState("");

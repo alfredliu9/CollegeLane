@@ -51,6 +51,19 @@ export const defaultAthlete: AthleteProfile = {
   goals: ["Compete at the strongest possible level", "Balance strong academics and athletics"], goalNotes: "", upcomingMeet: ""
 };
 
+// Blank starting profile for a brand-new account. Use this (NOT defaultAthlete)
+// as the fallback for `cl-athlete` so a new athlete never sees demo data. The
+// event is a valid placeholder so assess()/collegeRating() never crash; the
+// empty gender + zero performance make the dashboard prompt onboarding.
+export const emptyAthlete: AthleteProfile = {
+  name: "", lastName: "", gender: "", gradYear: 2027, province: "", school: "", category: "",
+  event: "100 metres", performance: 0, season: "Outdoor", timing: "Fully automatic", wind: null,
+  meet: "", resultDate: "", verificationUrl: "", average: 0,
+  secondaryResults: [],
+  major: "", schoolSize: "No preference", region: "",
+  pathways: [], goals: [], goalNotes: "", upcomingMeet: ""
+};
+
 const levels: Record<EventName, number[]> = {
   "100 metres": [13.2, 12.4, 11.8, 11.3],
   "200 metres": [27.2, 25.5, 24.1, 22.8],

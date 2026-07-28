@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Button, Card, Input, Notice, PageHead } from "@/components/ui";
 import { useAccountState } from "@/lib/account-state";
-import { defaultAthlete, type AthleteProfile } from "@/lib/recruiting";
+import { emptyAthlete, type AthleteProfile } from "@/lib/recruiting";
 
 type Message = { who: "you" | "bot"; text: string };
 
@@ -15,7 +15,7 @@ const STARTERS = [
 ];
 
 export default function AssistantPage() {
-  const { data: athlete } = useAccountState<AthleteProfile>("cl-athlete", defaultAthlete);
+  const { data: athlete } = useAccountState<AthleteProfile>("cl-athlete", emptyAthlete);
   const greeting: Message = {
     who: "bot",
     text: `Hi ${athlete.name || "there"} — I can use your saved ${athlete.event.toLowerCase()} profile to help with school lists, coach outreach, recruiting timelines, and NCAA vs. U SPORTS pathways. What would you like to work on?`,
