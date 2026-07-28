@@ -13,7 +13,6 @@ const NAV = [
   { href: "/plan", label: "Plan" },
   { href: "/outreach", label: "Outreach" },
   { href: "/email-builder", label: "Email builder" },
-  { href: "/assistant", label: "Assistant" },
   { href: "/profile", label: "Profile" },
 ];
 const MOBILE_TABS = ["/dashboard", "/schools", "/recommended", "/plan", "/profile"];
