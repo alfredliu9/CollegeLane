@@ -1,7 +1,9 @@
 "use client";
+import { useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { clearAccountCache, prefetchAccountState } from "@/lib/account-state";
 
 const NAV = [
   { href: "/dashboard", label: "Dashboard" },
@@ -21,7 +23,14 @@ export function AppShell({ children, email }: { children: React.ReactNode; email
   const router = useRouter();
   const active = (href: string) => path === href || path.startsWith(href + "/");
 
+  // Warm the cache for the data most pages need, so the first navigation to a
+  // page shows data instantly instead of a spinner.
+  useEffect(() => {
+    prefetchAccountState(["cl-athlete", "cl-schools", "cl-tasks", "cl-outreach"]);
+  }, []);
+
   async function logout() {
+    clearAccountCache();
     await createClient().auth.signOut();
     router.push("/login");
     router.refresh();
