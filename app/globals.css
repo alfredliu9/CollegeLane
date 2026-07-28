@@ -147,6 +147,10 @@ table.tbl { border-collapse: collapse; width: 100%; }
 .sidebar .foot { margin-top: auto; border-top: 1px solid var(--line); padding-top: 12px; }
 .main { min-width: 0; }
 
+/* The two-tone (navy + blue) logo needs a light backing to stay legible on the
+   dark theme, otherwise the navy half disappears. Every logo img shares this alt. */
+img[alt="CollegeLane"] { background: #eef3fc; padding: 5px 10px; border-radius: 10px; }
+
 .topbar { display: none; }
 .tabbar { display: none; }
 @media (max-width: 860px) {
