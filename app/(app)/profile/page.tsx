@@ -2,10 +2,12 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Button, Card, Field, Input, Notice, PageHead, Select, Textarea } from "@/components/ui";
+import { PerformanceToast, type PerformanceToastDetails } from "@/components/perf-toast";
 import { useAccountState } from "@/lib/account-state";
 import { useDisplayName } from "@/lib/use-display-name";
 import {
   assess,
+  collegeRating,
   emptyAthlete,
   isRunningEvent,
   unitFor,
@@ -59,15 +61,57 @@ export default function ProfilePage() {
   const displayName = useDisplayName();
   const [form, setForm] = useState<AthleteProfile>(emptyAthlete);
   const [touched, setTouched] = useState(false);
+  const [perfToast, setPerfToast] = useState<PerformanceToastDetails | null>(null);
   const hydrated = useRef(false);
   const namePrefilled = useRef(false);
+  // Last "settled" primary result, used to decide whether an edit is a genuine
+  // personal best. Seeded from the loaded profile so simply opening the page
+  // (or loading existing data) can never fire the celebration.
+  const primaryBaseline = useRef<{ event: EventName; performance: number } | null>(null);
 
   useEffect(() => {
     if (!loading && !hydrated.current) {
       setForm(data);
+      primaryBaseline.current = { event: data.event, performance: data.performance };
       hydrated.current = true;
     }
   }, [loading, data]);
+
+  // Detect a real personal best on the PRIMARY result. Auto-save fires on every
+  // keystroke, so we debounce and only compare the *settled* value against the
+  // baseline — this avoids celebrating half-typed marks (e.g. "1" for "10.55").
+  // Running events improve when the time drops; jumps improve when distance
+  // grows. Zero / first-entry marks and event switches update the baseline
+  // silently without ever showing the toast.
+  useEffect(() => {
+    if (!hydrated.current) return;
+    const event = form.event;
+    const performance = form.performance;
+    const timer = setTimeout(() => {
+      const baseline = primaryBaseline.current;
+      primaryBaseline.current = { event, performance };
+      if (!baseline || baseline.event !== event) return;
+      if (baseline.performance <= 0 || performance <= 0) return;
+      const improved = isRunningEvent(event)
+        ? performance < baseline.performance
+        : performance > baseline.performance;
+      if (!improved) return;
+      const oldRating = collegeRating({ ...form, performance: baseline.performance });
+      const newRating = collegeRating({ ...form, performance });
+      setPerfToast({
+        event,
+        oldMark: baseline.performance,
+        newMark: performance,
+        oldRating: oldRating.rating,
+        oldStars: oldRating.stars,
+        newRating: newRating.rating,
+        newStars: newRating.stars,
+      });
+    }, 700);
+    return () => clearTimeout(timer);
+    // Only the primary mark/event should re-arm the detector.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.event, form.performance]);
 
   // After the saved profile loads, seed the first-name field from the signed-in
   // identity when it is still blank. Runs once and only touches an empty name,
@@ -107,6 +151,7 @@ export default function ProfilePage() {
 
   return (
     <div className="page">
+      {perfToast && <PerformanceToast {...perfToast} onClose={() => setPerfToast(null)} />}
       <PageHead eyebrow="Live recruiting data" title="Athlete profile">
         <p>Every change saves automatically and recalculates your dashboard, assessment, and recommendations.</p>
       </PageHead>
