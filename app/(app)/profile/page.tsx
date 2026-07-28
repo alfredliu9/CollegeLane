@@ -106,6 +106,8 @@ export default function ProfilePage() {
         oldStars: oldRating.stars,
         newRating: newRating.rating,
         newStars: newRating.stars,
+        oldPathway: oldRating.pathway,
+        newPathway: newRating.pathway,
       });
     }, 700);
     return () => clearTimeout(timer);
