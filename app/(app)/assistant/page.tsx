@@ -18,7 +18,7 @@ export default function AssistantPage() {
   const { data: athlete } = useAccountState<AthleteProfile>("cl-athlete", emptyAthlete);
   const greeting: Message = {
     who: "bot",
-    text: `Hi ${athlete.name || "there"} — I can use your saved ${athlete.event.toLowerCase()} profile to help with school lists, coach outreach, recruiting timelines, and NCAA vs. U SPORTS pathways. What would you like to work on?`,
+    text: `Hi ${athlete.name || "there"}. I can use your saved ${athlete.event.toLowerCase()} profile to help with school lists, coach outreach, recruiting timelines, and NCAA vs. U SPORTS pathways. What would you like to work on?`,
   };
   const { data: messages, save: saveMessages } = useAccountState<Message[]>("cl-chat", [greeting]);
 

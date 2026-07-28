@@ -109,7 +109,7 @@ function RecommendationCard({
             <EventRow key={comparison.event} comparison={comparison} />
           ))}
           <small className="faint" style={{ display: "block", marginTop: 8 }}>
-            Roster averages describe current team performance — not recruiting standards or offer probability.
+            Roster averages describe current team performance, not recruiting standards or offer probability.
           </small>
         </div>
       ) : null}
@@ -195,9 +195,9 @@ export default function RecommendedPage() {
     <div className="page">
       <PageHead eyebrow="Deterministic matches" title="Recommended">
         <p>
-          These matches are generated deterministically from your saved profile and verified roster data — no AI, no
-          predictions. The same profile and data always produce the same list. Nothing here guarantees admission,
-          recruitment, roster placement, or scholarships.
+          These matches come straight from your saved profile and verified roster data, with no AI and no predictions.
+          The same profile and data always produce the same list. Nothing here guarantees admission, recruitment, roster
+          placement, or scholarships.
         </p>
       </PageHead>
 

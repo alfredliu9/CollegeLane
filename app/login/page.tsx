@@ -92,7 +92,7 @@ function LoginForm() {
           Welcome back to your lane.
         </h1>
         <p className="muted" style={{ marginTop: 4, fontSize: 14 }}>
-          Understand your potential. Research programs. Move with purpose.
+          See where you stand, research programs, and plan your next move.
         </p>
       </div>
 

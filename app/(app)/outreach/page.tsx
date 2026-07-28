@@ -78,7 +78,7 @@ export default function OutreachPage() {
     <div className="page">
       <PageHead eyebrow="Coach contacts" title="Outreach tracker">
         <p>
-          Keep a simple record of every program you contact — who you reached, when, where the conversation stands, and
+          Keep a simple record of every program you contact: who you reached, when, where the conversation stands, and
           when to follow up. Staying organized is one of the most useful things you can do in recruiting.
         </p>
       </PageHead>

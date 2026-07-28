@@ -160,7 +160,7 @@ export default function SignupPage() {
                 </Link>
               </div>
               <p className="hint" style={{ marginTop: 12, textAlign: "center" }}>
-                For security, a new email can only be sent every 50–60 seconds.
+                For security, a new email can only be sent every 50 to 60 seconds.
               </p>
             </Card>
           ) : (
@@ -171,7 +171,7 @@ export default function SignupPage() {
                   Build your recruiting path.
                 </h1>
                 <p className="muted" style={{ marginTop: 4, fontSize: 14 }}>
-                  Understand your potential. Research programs. Move with purpose.
+                  See where you stand, research programs, and plan your next move.
                 </p>
               </div>
 

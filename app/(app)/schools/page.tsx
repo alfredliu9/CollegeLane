@@ -134,7 +134,7 @@ export default function SchoolsPage() {
           {athlete.gender ? (
             <span>
               Comparisons use your {formatPerformance(athlete)} result and verified {athlete.gender.toLowerCase()} roster averages
-              for {athlete.event.toLowerCase()}. A roster average shows where a team currently sits — it is not a recruiting
+              for {athlete.event.toLowerCase()}. A roster average shows where a team currently sits. It is not a recruiting
               standard or offer threshold.
             </span>
           ) : (

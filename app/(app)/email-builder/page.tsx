@@ -135,7 +135,7 @@ export default function EmailBuilderPage() {
     return parts.length ? `\n\nI have attached ${parts.join(" and ")} for your review.` : "";
   })();
 
-  const subject = `${athlete.gradYear} ${athlete.event} recruit — ${fullName} (${formatPerformance(athlete)})`;
+  const subject = `${athlete.gradYear} ${athlete.event} recruit: ${fullName} (${formatPerformance(athlete)})`;
   const toLine = selected.map((c) => c.email || c.name).join(", ");
   const body =
     `Dear ${greeting},\n\n` +
@@ -164,7 +164,7 @@ export default function EmailBuilderPage() {
       <PageHead eyebrow="Coach outreach" title="Email builder">
         <p>
           Pick a program, choose the coaches to address, and CollegeLane assembles a ready-to-send draft from your saved profile. The
-          draft is read-only — copy it into your own email to send.
+          draft is read-only, so copy it into your own email to send.
         </p>
       </PageHead>
 

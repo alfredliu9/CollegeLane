@@ -51,8 +51,8 @@ export default function AssessmentPage() {
     <div className="page">
       <PageHead eyebrow="Collegiate rating" title="Your educational assessment">
         <p>
-          A broad research signal built from your saved {profile.event.toLowerCase()} result. It helps you ask better questions —
-          it is not an offer, a threshold, or a recruiting decision.
+          A broad research signal built from your saved {profile.event.toLowerCase()} result. It helps you ask better
+          questions. It is not an offer, a threshold, or a recruiting decision.
         </p>
       </PageHead>
 

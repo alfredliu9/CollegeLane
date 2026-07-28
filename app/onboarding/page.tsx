@@ -51,14 +51,29 @@ const REGIONS = [
   "California", "Florida", "Texas", "New York",
 ];
 
-const STEP_TITLES = [
-  "Tell us about yourself",
-  "Add your best result",
-  "Any additional results?",
-  "Shape your school search",
-  "What are you working toward?",
+const STEPS = [
+  {
+    title: "Tell us about yourself",
+    helper: "Just the basics, so we can line your result up with the right benchmarks.",
+  },
+  {
+    title: "Add your best result",
+    helper: "Your single strongest mark so far. You can update it any time as you improve.",
+  },
+  {
+    title: "Any other results to add?",
+    helper: "Optional. A couple more marks help round out your profile, but feel free to skip.",
+  },
+  {
+    title: "Shape your school search",
+    helper: "Tell us what you are looking for so your matches feel relevant. All optional.",
+  },
+  {
+    title: "What are you working toward?",
+    helper: "This helps us tailor your plan. There are no wrong answers here.",
+  },
 ];
-const TOTAL_STEPS = STEP_TITLES.length;
+const TOTAL_STEPS = STEPS.length;
 
 function emptyResult(event: EventName): AthleteResult {
   return { event, performance: 0, season: "Outdoor", timing: "Fully automatic", wind: null, meet: "", resultDate: "" };
@@ -107,9 +122,37 @@ export default function OnboardingPage() {
   const updateSecondary = (index: number, patch: Partial<AthleteResult>) =>
     set("secondaryResults", secondary.map((r, i) => (i === index ? { ...r, ...patch } : r)));
 
+  // Per-step required fields. Optional steps always pass. The final step also
+  // re-checks the essentials so Finish can never save an incomplete profile.
+  const nameOk = form.name.trim().length > 0;
+  const genderOk = form.gender === "Men" || form.gender === "Women";
+  const resultOk = Boolean(form.event) && form.performance > 0;
+
+  const stepValid: Record<number, boolean> = {
+    1: nameOk && genderOk,
+    2: resultOk,
+    3: true,
+    4: true,
+    5: nameOk && genderOk && resultOk,
+  };
+  const canAdvance = stepValid[step];
+  const isLast = step === TOTAL_STEPS;
+
+  // Gentle, plain-language nudge shown near the buttons when a step is blocked,
+  // so the reason a disabled button will not move forward is always visible.
+  const blockedHint =
+    step === 1
+      ? "Add your first name and competition gender to continue."
+      : step === 2
+        ? "Add your primary event and a personal best above 0 to continue."
+        : isLast
+          ? "Your first name, competition gender, and a primary result are needed to finish."
+          : "";
+
   async function next(e: React.FormEvent) {
     e.preventDefault();
-    if (step < TOTAL_STEPS) {
+    if (!canAdvance) return;
+    if (!isLast) {
       setStep(step + 1);
       window.scrollTo({ top: 0 });
       return;
@@ -117,6 +160,13 @@ export default function OnboardingPage() {
     await save({ ...form, secondaryResults: secondary });
     router.push("/dashboard");
   }
+
+  function back() {
+    setStep((s) => Math.max(1, s - 1));
+    window.scrollTo({ top: 0 });
+  }
+
+  const current = STEPS[step - 1];
 
   return (
     <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", background: "var(--bg)" }}>
@@ -134,27 +184,39 @@ export default function OnboardingPage() {
         <span className="eyebrow">Step {step} of {TOTAL_STEPS}</span>
       </header>
 
-      <div className="bar" style={{ borderRadius: 0 }}>
+      <div
+        className="bar"
+        style={{ borderRadius: 0 }}
+        role="progressbar"
+        aria-valuenow={step}
+        aria-valuemin={1}
+        aria-valuemax={TOTAL_STEPS}
+        aria-label={`Setup progress, step ${step} of ${TOTAL_STEPS}`}
+      >
         <i style={{ width: `${(step / TOTAL_STEPS) * 100}%` }} />
       </div>
 
       <main style={{ width: "100%", maxWidth: 640, margin: "0 auto", padding: "28px 18px 96px", flex: 1 }}>
         <span className="eyebrow">Athlete setup</span>
-        <h1 className="h1" style={{ margin: "6px 0 20px" }}>{STEP_TITLES[step - 1]}</h1>
+        <h1 className="h1" style={{ margin: "6px 0 8px" }}>{current.title}</h1>
+        <p className="muted" style={{ marginBottom: 20 }}>{current.helper}</p>
 
         <form onSubmit={next}>
           <Card lg>
             {step === 1 && (
               <>
                 <div className="grid-2">
-                  <Field label="First name">
+                  <Field
+                    label="First name"
+                    hint={!nameOk ? "We use this to greet you and personalize your plan." : undefined}
+                  >
                     <Input required autoComplete="given-name" value={form.name} onChange={(e) => set("name", e.target.value)} />
                   </Field>
                   <Field label="Last name">
-                    <Input required autoComplete="family-name" value={form.lastName || ""} onChange={(e) => set("lastName", e.target.value)} />
+                    <Input autoComplete="family-name" value={form.lastName || ""} onChange={(e) => set("lastName", e.target.value)} />
                   </Field>
                 </div>
-                <Field label="Competition gender" hint="Used to match your result with the correct roster averages.">
+                <Field label="Competition gender" hint="Used to match your result with the correct roster benchmarks.">
                   <Select required value={form.gender || ""} onChange={(e) => set("gender", e.target.value as AthleteProfile["gender"])}>
                     <option value="">Select gender</option>
                     <option value="Men">Men</option>
@@ -176,7 +238,7 @@ export default function OnboardingPage() {
                 </div>
                 <div className="grid-2">
                   <Field label="High school">
-                    <Input required value={form.school} onChange={(e) => set("school", e.target.value)} />
+                    <Input value={form.school} onChange={(e) => set("school", e.target.value)} placeholder="Your school name" />
                   </Field>
                   <Field label="Competition category">
                     <Select value={form.category} onChange={(e) => set("category", e.target.value)}>
@@ -197,7 +259,10 @@ export default function OnboardingPage() {
                   </Select>
                 </Field>
                 <div className="grid-2">
-                  <Field label={`Personal best (${unitFor(form.event)})`} hint={isRunningEvent(form.event) ? "Enter your time in seconds." : "Enter your mark in metres."}>
+                  <Field
+                    label={`Personal best (${unitFor(form.event)})`}
+                    hint={isRunningEvent(form.event) ? "Enter your time in seconds, like 11.42." : "Enter your mark in metres, like 6.62."}
+                  >
                     <Input type="number" min="0.01" step="0.01" required value={form.performance || ""} onChange={(e) => set("performance", e.target.value === "" ? 0 : Number(e.target.value))} />
                   </Field>
                   <Field label="Season">
@@ -207,38 +272,43 @@ export default function OnboardingPage() {
                     </Select>
                   </Field>
                 </div>
-                <div className="grid-2">
-                  {isRunningEvent(form.event) && (
-                    <Field label="Timing method">
-                      <Select value={form.timing} onChange={(e) => set("timing", e.target.value as AthleteProfile["timing"])}>
-                        <option>Fully automatic</option>
-                        <option>Hand timed</option>
-                      </Select>
-                    </Field>
-                  )}
-                  {WIND_EVENTS.includes(form.event) && (
-                    <Field label="Wind reading (m/s)" hint="Leave blank if not recorded.">
-                      <Input type="number" step="0.1" value={form.wind ?? ""} onChange={(e) => set("wind", e.target.value === "" ? null : Number(e.target.value))} />
-                    </Field>
-                  )}
-                </div>
+                {(isRunningEvent(form.event) || WIND_EVENTS.includes(form.event)) && (
+                  <div className="grid-2">
+                    {isRunningEvent(form.event) && (
+                      <Field label="Timing method">
+                        <Select value={form.timing} onChange={(e) => set("timing", e.target.value as AthleteProfile["timing"])}>
+                          <option>Fully automatic</option>
+                          <option>Hand timed</option>
+                        </Select>
+                      </Field>
+                    )}
+                    {WIND_EVENTS.includes(form.event) && (
+                      <Field label="Wind reading (m/s)" hint="Leave blank if it was not recorded.">
+                        <Input type="number" step="0.1" value={form.wind ?? ""} onChange={(e) => set("wind", e.target.value === "" ? null : Number(e.target.value))} placeholder="Optional" />
+                      </Field>
+                    )}
+                  </div>
+                )}
                 <div className="grid-2">
                   <Field label="Meet name">
-                    <Input required value={form.meet} onChange={(e) => set("meet", e.target.value)} />
+                    <Input value={form.meet} onChange={(e) => set("meet", e.target.value)} placeholder="Where you set this mark" />
                   </Field>
                   <Field label="Result date">
-                    <Input type="date" required value={form.resultDate} onChange={(e) => set("resultDate", e.target.value)} />
+                    <Input type="date" value={form.resultDate} onChange={(e) => set("resultDate", e.target.value)} />
                   </Field>
                 </div>
+                <Notice>
+                  This mark drives your educational estimate. It is a starting point for your research, not a recruiting promise.
+                </Notice>
               </>
             )}
 
             {step === 3 && (
               <>
-                <Notice>Additional results are optional. Add up to two more marks to strengthen your profile.</Notice>
+                <Notice>These extra results are optional. Add up to two more marks to round out your profile, or skip and keep going.</Notice>
                 {secondary.map((result, index) => (
                   <div key={`secondary-${index}`} style={{ marginTop: 18 }}>
-                    <p className="h3" style={{ marginBottom: 12 }}>Additional result {index + 1}</p>
+                    <p className="h3" style={{ marginBottom: 12 }}>Extra result {index + 1}</p>
                     <Field label="Event">
                       <Select value={result.event} onChange={(e) => updateSecondary(index, { event: e.target.value as EventName, wind: null })}>
                         {EVENTS.map((x) => <option key={x}>{x}</option>)}
@@ -246,7 +316,7 @@ export default function OnboardingPage() {
                     </Field>
                     <div className="grid-2">
                       <Field label={`Personal best (${unitFor(result.event)})`}>
-                        <Input type="number" min="0.01" step="0.01" placeholder="Enter result" value={result.performance || ""} onChange={(e) => updateSecondary(index, { performance: e.target.value === "" ? 0 : Number(e.target.value) })} />
+                        <Input type="number" min="0.01" step="0.01" placeholder="Optional" value={result.performance || ""} onChange={(e) => updateSecondary(index, { performance: e.target.value === "" ? 0 : Number(e.target.value) })} />
                       </Field>
                       <Field label="Season">
                         <Select value={result.season} onChange={(e) => updateSecondary(index, { season: e.target.value as AthleteResult["season"] })}>
@@ -255,24 +325,26 @@ export default function OnboardingPage() {
                         </Select>
                       </Field>
                     </div>
-                    <div className="grid-2">
-                      {isRunningEvent(result.event) && (
-                        <Field label="Timing method">
-                          <Select value={result.timing} onChange={(e) => updateSecondary(index, { timing: e.target.value as AthleteResult["timing"] })}>
-                            <option>Fully automatic</option>
-                            <option>Hand timed</option>
-                          </Select>
-                        </Field>
-                      )}
-                      {WIND_EVENTS.includes(result.event) && (
-                        <Field label="Wind reading (m/s)">
-                          <Input type="number" step="0.1" value={result.wind ?? ""} onChange={(e) => updateSecondary(index, { wind: e.target.value === "" ? null : Number(e.target.value) })} />
-                        </Field>
-                      )}
-                    </div>
+                    {(isRunningEvent(result.event) || WIND_EVENTS.includes(result.event)) && (
+                      <div className="grid-2">
+                        {isRunningEvent(result.event) && (
+                          <Field label="Timing method">
+                            <Select value={result.timing} onChange={(e) => updateSecondary(index, { timing: e.target.value as AthleteResult["timing"] })}>
+                              <option>Fully automatic</option>
+                              <option>Hand timed</option>
+                            </Select>
+                          </Field>
+                        )}
+                        {WIND_EVENTS.includes(result.event) && (
+                          <Field label="Wind reading (m/s)">
+                            <Input type="number" step="0.1" placeholder="Optional" value={result.wind ?? ""} onChange={(e) => updateSecondary(index, { wind: e.target.value === "" ? null : Number(e.target.value) })} />
+                          </Field>
+                        )}
+                      </div>
+                    )}
                     <div className="grid-2">
                       <Field label="Meet name">
-                        <Input value={result.meet} onChange={(e) => updateSecondary(index, { meet: e.target.value })} />
+                        <Input value={result.meet} onChange={(e) => updateSecondary(index, { meet: e.target.value })} placeholder="Optional" />
                       </Field>
                       <Field label="Result date">
                         <Input type="date" value={result.resultDate} onChange={(e) => updateSecondary(index, { resultDate: e.target.value })} />
@@ -297,7 +369,7 @@ export default function OnboardingPage() {
                   </Field>
                 </div>
                 <div className="grid-2">
-                  <Field label="Preferred region" hint="Type to search suggestions.">
+                  <Field label="Preferred region" hint="Start typing to see suggestions.">
                     <Input list="onboarding-regions" value={form.region} onChange={(e) => set("region", e.target.value)} placeholder="Type to search regions" />
                     <datalist id="onboarding-regions">
                       {REGIONS.map((x) => <option key={x} value={x} />)}
@@ -312,7 +384,7 @@ export default function OnboardingPage() {
                     </Select>
                   </Field>
                 </div>
-                <Field label="Pathways to explore">
+                <Field label="Pathways to explore" hint="Pick any that interest you. You can change these later.">
                   <div className="stack" style={{ gap: 10, marginTop: 2 }}>
                     {PATHWAYS.map((x) => (
                       <label className="check" key={x}>
@@ -327,7 +399,7 @@ export default function OnboardingPage() {
 
             {step === 5 && (
               <>
-                <Field label="Recruiting goals">
+                <Field label="Your goals" hint="Choose the ones that fit. This shapes the plan we build with you.">
                   <div className="stack" style={{ gap: 10, marginTop: 2 }}>
                     {GOALS.map((x) => (
                       <label className="check" key={x}>
@@ -337,21 +409,28 @@ export default function OnboardingPage() {
                     ))}
                   </div>
                 </Field>
-                <Field label="Goal notes" hint="Anything else you want coaches or your plan to reflect.">
-                  <Textarea value={form.goalNotes} onChange={(e) => set("goalNotes", e.target.value)} placeholder="Optional — share context about your goals." />
+                <Field label="Anything else on your mind?" hint="Optional. Add any context you want your plan to reflect.">
+                  <Textarea value={form.goalNotes} onChange={(e) => set("goalNotes", e.target.value)} placeholder="Share a bit about what you are hoping for." />
                 </Field>
+                <Notice>
+                  CollegeLane is here to help you research and organize your options. It does not guarantee recruitment or scholarships.
+                </Notice>
               </>
             )}
           </Card>
 
-          <div className="row" style={{ marginTop: 20, justifyContent: "space-between" }}>
+          {!canAdvance && blockedHint && (
+            <p className="hint" style={{ marginTop: 12, textAlign: "center" }}>{blockedHint}</p>
+          )}
+
+          <div className="row" style={{ marginTop: 16, justifyContent: "space-between" }}>
             {step > 1 ? (
-              <Button type="button" variant="secondary" onClick={() => setStep(step - 1)}>Back</Button>
+              <Button type="button" variant="secondary" onClick={back}>Back</Button>
             ) : (
               <span />
             )}
-            <Button type="submit" disabled={saving}>
-              {step === TOTAL_STEPS ? (saving ? "Saving…" : "Save and go to dashboard") : "Continue"}
+            <Button type="submit" disabled={saving || !canAdvance}>
+              {isLast ? (saving ? "Saving…" : "Finish") : "Continue"}
             </Button>
           </div>
         </form>

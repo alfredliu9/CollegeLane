@@ -152,8 +152,8 @@ export default function SchoolDetailPage() {
         </div>
 
         <Notice>
-          A roster average is published only after the underlying marks are checked. It shows where a team currently sits — it
-          is not a recruiting standard, benchmark, or offer threshold. Confirm current event sponsorship and roster needs with
+          A roster average is published only after the underlying marks are checked. It shows where a team currently sits. It
+          is not a recruiting standard or offer threshold. Confirm current event sponsorship and roster needs with
           the school.
         </Notice>
 

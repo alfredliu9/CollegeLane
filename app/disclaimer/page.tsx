@@ -65,7 +65,7 @@ export default function DisclaimerPage() {
             </h1>
             <p className="muted" style={{ fontSize: 18, maxWidth: 620 }}>
               CollegeLane helps student-athletes understand their options and take informed next steps. It is a research
-              and learning tool — not a promise about any recruiting outcome.
+              and learning tool, not a promise about any recruiting outcome.
             </p>
           </header>
 

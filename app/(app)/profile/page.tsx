@@ -276,7 +276,7 @@ export default function ProfilePage() {
               </div>
             </Field>
             <Field label="Goal notes" hint="Anything else you want coaches or your plan to reflect.">
-              <Textarea value={form.goalNotes} onChange={(e) => set("goalNotes", e.target.value)} placeholder="Optional — share context about your goals." />
+              <Textarea value={form.goalNotes} onChange={(e) => set("goalNotes", e.target.value)} placeholder="Optional. Share context about your goals." />
             </Field>
           </Card>
         </form>

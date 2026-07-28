@@ -12,7 +12,7 @@ const STEPS = [
   {
     n: "01",
     title: "Enter your results",
-    body: "Add your event, personal best, and the context around it — season, wind, and meet.",
+    body: "Add your event, personal best, and the details behind it, like season, wind, and meet.",
   },
   {
     n: "02",
@@ -22,7 +22,7 @@ const STEPS = [
   {
     n: "03",
     title: "Take action",
-    body: "Build a researched school list and prepare confident, well-informed outreach to coaches.",
+    body: "Build a school list based on real research and get ready to reach out to coaches.",
   },
 ];
 
@@ -143,8 +143,8 @@ export default function Home() {
                 Your performance deserves to be seen.
               </h1>
               <p className="muted" style={{ fontSize: 18, maxWidth: 600 }}>
-                CollegeLane helps Canadian high-school track-and-field athletes understand their collegiate potential,
-                explore realistic recruiting pathways, and confidently reach out to college coaches.
+                CollegeLane helps Canadian high-school track-and-field athletes see where they stand, explore realistic
+                recruiting pathways, and reach out to college coaches.
               </p>
               <div className="row wrap" style={{ justifyContent: "center", marginTop: 4 }}>
                 <Link href="/signup" className="btn btn-primary">
@@ -171,7 +171,7 @@ export default function Home() {
               Three steps. One clear direction.
             </h2>
             <p className="muted">
-              Recruiting can feel like a maze. CollegeLane turns it into a practical, informed plan you can act on.
+              Recruiting can feel like a maze. CollegeLane turns it into a clear plan you can act on.
             </p>
           </div>
           <div className="grid-3">
@@ -198,7 +198,7 @@ export default function Home() {
                 </h2>
                 <p className="muted" style={{ maxWidth: 520 }}>
                   Learn how divisions, eligibility, scholarships, admissions, and timelines differ across the two
-                  systems — then confirm the details through official sources before you decide.
+                  systems, then confirm the details through official sources before you decide.
                 </p>
                 <div style={{ marginTop: 4 }}>
                   <Link href="/signup" className="btn btn-primary">
