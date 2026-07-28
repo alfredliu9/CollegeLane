@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { Badge, Button, Card, Empty, Notice, PageHead } from "@/components/ui";
 import { useAccountState } from "@/lib/account-state";
-import { isRunningEvent, unitFor, type EventName } from "@/lib/recruiting";
+import { unitFor, type EventName } from "@/lib/recruiting";
 import type { EventComparison, Recommendation, RecommendationResponse } from "@/lib/recommendations";
 
 /* Deterministic, educational school matching. This page renders the response of
@@ -32,6 +32,9 @@ const CATEGORY_BLURB: Record<Category, string> = {
 
 const LIMITS = [12, 24] as const;
 
+// How many cards each compatibility group shows before "Show all" is offered.
+const GROUP_PREVIEW_COUNT = 3;
+
 function mark(event: EventName, value: number) {
   return `${value.toFixed(2)} ${unitFor(event)}`;
 }
@@ -49,7 +52,6 @@ function confidenceBadge(confidence: Recommendation["dataConfidence"]) {
 
 function EventRow({ comparison }: { comparison: EventComparison }) {
   const gap = comparison.gapPercent;
-  const running = isRunningEvent(comparison.event);
   // For running events a lower mark is faster, so a positive gap already means "ahead".
   const ahead = gap >= 0;
   return (
@@ -66,12 +68,6 @@ function EventRow({ comparison }: { comparison: EventComparison }) {
           {gap >= 0 ? "+" : ""}
           {gap.toFixed(1)}%
         </Badge>
-        <div>
-          <small className="faint">
-            n={comparison.sampleSize} · {comparison.season}
-            {running ? " · FAT" : ""}
-          </small>
-        </div>
       </div>
     </div>
   );
@@ -275,6 +271,16 @@ function Results({
     items: data.recommendations.filter((item) => item.category === category),
   })).filter((group) => group.items.length > 0);
 
+  const [expandedGroups, setExpandedGroups] = useState<Set<Category>>(new Set());
+  const toggleGroup = (category: Category) => {
+    setExpandedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(category)) next.delete(category);
+      else next.add(category);
+      return next;
+    });
+  };
+
   return (
     <div className="stack" style={{ gap: 22 }}>
       {data.warnings.length > 0 ? (
@@ -306,24 +312,36 @@ function Results({
         </Empty>
       ) : null}
 
-      {grouped.map((group) => (
-        <section key={group.category} className="stack" style={{ gap: 12 }}>
-          <div>
-            <h2 className="h2">{group.category}</h2>
-            <p className="muted" style={{ fontSize: 13 }}>{CATEGORY_BLURB[group.category]}</p>
-          </div>
-          <div className="grid-2">
-            {group.items.map((item) => (
-              <RecommendationCard
-                key={item.schoolId}
-                item={item}
-                saved={savedSchools.includes(item.schoolId)}
-                onToggleSave={onToggleSave}
-              />
-            ))}
-          </div>
-        </section>
-      ))}
+      {grouped.map((group) => {
+        const isExpanded = expandedGroups.has(group.category);
+        const visibleItems = isExpanded ? group.items : group.items.slice(0, GROUP_PREVIEW_COUNT);
+        const hiddenCount = group.items.length - GROUP_PREVIEW_COUNT;
+        return (
+          <section key={group.category} className="stack" style={{ gap: 12 }}>
+            <div>
+              <h2 className="h2">{group.category}</h2>
+              <p className="muted" style={{ fontSize: 13 }}>{CATEGORY_BLURB[group.category]}</p>
+            </div>
+            <div className="grid-2">
+              {visibleItems.map((item) => (
+                <RecommendationCard
+                  key={item.schoolId}
+                  item={item}
+                  saved={savedSchools.includes(item.schoolId)}
+                  onToggleSave={onToggleSave}
+                />
+              ))}
+            </div>
+            {hiddenCount > 0 ? (
+              <div className="row">
+                <Button variant="secondary" size="sm" onClick={() => toggleGroup(group.category)}>
+                  {isExpanded ? "Show less" : `Show all (${group.items.length})`}
+                </Button>
+              </div>
+            ) : null}
+          </section>
+        );
+      })}
 
       {data.researchOnly.length > 0 ? (
         <section className="stack" style={{ gap: 12 }}>
