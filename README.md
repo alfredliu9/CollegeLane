@@ -10,13 +10,16 @@ The assistant uses the server-side OpenAI Responses API when `OPENAI_API_KEY` is
 
 ## Run locally
 
-1. Install dependencies with `pnpm install`.
-2. Start the development server with `pnpm dev`.
-3. Copy `.env.example` to `.env.local` and add an OpenAI API key if AI-generated answers are required.
-4. Open the local address shown in the terminal.
-5. Create a sample account or log in, then complete onboarding.
+CollegeLane is local-development only. There is no hosting target configured.
 
-Build the deployment bundle with `pnpm build`.
+1. Install dependencies with `npm install`.
+2. Create a `.env` file with `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY`, and (optionally) `OPENAI_API_KEY`. One `NAME=value` pair per line. Sign-in and sign-up return a configuration error until the three Supabase variables are set.
+3. Start the development server with `npm run dev`.
+4. Open the local address shown in the terminal, create an account, then complete onboarding.
+
+`npm run dev` applies any pending database migrations to the local Cloudflare D1 first (via `predev`), then starts the server. This is automatic and idempotent, so there is no separate migration step. Do not run `npm run db:migrate` by hand while `npm run dev` is already running — both write the same local Miniflare database, and running them at once wedges the dev server until it is restarted.
+
+`npm run build` produces a local production bundle in `dist/`. Nothing deploys it.
 
 ## Technology
 

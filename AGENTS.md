@@ -38,14 +38,18 @@ CollegeLane is educational. It must never guarantee recruitment, admission, elig
 
 ## Current deployment
 
-- Production URL: `https://collegelane-athlete.alfredliu9.chatgpt.site`
-- Sites project ID: stored in `.openai/hosting.json`
-- Hosting bindings:
-  - D1 database: `DB`
-  - R2 bucket: `UPLOADS`
-- The Sites access policy is currently custom/private and limited to the owner. A visitor must pass the hosting-level ChatGPT access check before reaching CollegeLane.
-- If the site is later made public, CollegeLane's Supabase authentication should remain responsible for protecting private application pages.
-- Every production deployment must go through the Sites workflow because `.openai/hosting.json` exists.
+CollegeLane is **local-development only**. There is no configured hosting target.
+
+The project previously deployed through OpenAI Sites. That integration was removed on 2026-07-27 because it was not reliable enough to build against. Removed along with it: `.openai/hosting.json`, the `build/sites-vite-plugin.ts` packaging plugin, and the `dist/.openai` deploy bundle. Any earlier `*.chatgpt.site` deployment is no longer connected to this repository.
+
+Local Cloudflare bindings are declared directly in `vite.config.ts` and served by the Cloudflare Vite plugin's Miniflare emulation:
+
+- D1 database: `DB` (local database name `site-creator-d1`, migrations in `drizzle/`)
+- R2 bucket: `UPLOADS` (local bucket name `site-creator-r2`)
+
+Local Miniflare state lives in the git-ignored `.wrangler/` directory. Deleting it resets the local database and uploads.
+
+If a hosting target is chosen later, prefer a normal Cloudflare Workers deploy (`wrangler.jsonc` plus `wrangler deploy`), since the app already targets Workers, D1, and R2. Whatever is chosen, CollegeLane's Supabase authentication remains responsible for protecting private application pages — do not depend on a hosting-layer access check for that.
 
 Do not place hosting credentials, bypass tokens, API keys, OAuth secrets, SMTP passwords, or personal account identifiers in source files or documentation.
 
@@ -64,14 +68,21 @@ Do not place hosting credentials, bypass tokens, API keys, OAuth secrets, SMTP p
 Useful commands:
 
 ```text
-npm run dev
+npm install
+npm run dev          # runs pending migrations (predev), then starts the server
 npm run build
 npm test
 npm run lint
 npm run db:generate
 ```
 
-The validated production build command is the Vinext build behind `npm run build`.
+`npm run dev` has a `predev` hook that runs `npm run db:migrate` first, so the local D1 schema is always current before the server starts. The migration step is idempotent — Wrangler skips already-applied migrations — so it adds about a second on an up-to-date database and needs no manual intervention.
+
+`npm run db:migrate` uses `wrangler.local.jsonc`, a CLI-only config that points Wrangler at the same Miniflare D1 the dev server uses. It is deliberately not named `wrangler.jsonc` so the Cloudflare Vite plugin does not auto-detect it; `vite.config.ts` remains the only source of binding config for `npm run dev`.
+
+Do not run `npm run db:migrate` by hand while `npm run dev` is already running. A second process writing the Miniflare database while the dev server holds it wedges the dev server's worker, which then returns HTTP 500 for every route until it is restarted. The `predev` hook is safe because it completes before the server starts.
+
+The validated build command is the Vinext build behind `npm run build`. Its output in `dist/` is a local artifact only — nothing publishes it.
 
 ## Environment variables
 
@@ -495,7 +506,7 @@ School/recommendation work should verify:
 
 ## Known gaps and next work
 
-- Hosting is private at the Sites layer. It must be changed to public before ordinary users can visit and create CollegeLane accounts.
+- There is no hosting target. A deployment platform must be chosen before ordinary users can visit and create CollegeLane accounts.
 - Women's roster metrics still need verified coverage.
 - The static school directory is broad, but locations, majors, sizes, track-program status, and metrics are incomplete for many schools.
 - Coach coverage is on-demand rather than a complete prebuilt NCAA/U SPORTS coach database.
@@ -518,7 +529,7 @@ School/recommendation work should verify:
 - Do not alter functioning behavior when a request is purely visual.
 - Preserve the transparent CollegeLane logo and mobile layout.
 - Build before publishing.
-- Because the project contains `.openai/hosting.json`, use Sites for versioning and deployment.
+- There is no hosting integration. Do not reintroduce Sites, `.openai/hosting.json`, or any deploy step without an explicit request.
 
 ## Documentation maintenance
 
