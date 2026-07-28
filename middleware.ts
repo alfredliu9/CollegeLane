@@ -12,6 +12,7 @@ const PRIVATE = [
   "/plan",
   "/email-builder",
   "/outreach",
+  "/mentors",
   "/profile",
 ];
 
