@@ -7,12 +7,10 @@ import { useAccountState } from "@/lib/account-state";
 import { assess, collegeRating, emptyAthlete, formatPerformance, profileCompletion } from "@/lib/recruiting";
 import { useDisplayName } from "@/lib/use-display-name";
 
-/* Signed-in home. Reads the saved athlete profile plus recruiting progress and
-   surfaces an educational snapshot: assessment summary, profile completion,
-   suggested next actions, plan progress, and saved schools. All persistence is
-   read-only here and flows through useAccountState. */
-
-const PLAN_STEPS = 9;
+/* Signed-in home. Reads the saved athlete profile and surfaces an educational
+   snapshot: assessment summary, profile completion, suggested next actions, and
+   saved schools. All persistence is read-only here and flows through
+   useAccountState. */
 
 type SavedSchool = {
   id: string;
@@ -47,7 +45,6 @@ function Stars({ count }: { count: number }) {
 
 export default function DashboardPage() {
   const { data: profile, loading } = useAccountState("cl-athlete", emptyAthlete);
-  const { data: doneTasks } = useAccountState<number[]>("cl-tasks", []);
   const { data: savedIds } = useAccountState<string[]>("cl-schools", []);
   const displayName = useDisplayName();
 
@@ -100,8 +97,6 @@ export default function DashboardPage() {
   const shortLabel = rating.label.split(" · ")[0];
   const assessment = assess(profile);
   const completion = profileCompletion(profile);
-  const doneCount = doneTasks.length;
-  const planPercent = Math.round((doneCount / PLAN_STEPS) * 100);
   // A profile is only "ready" once the athlete has actually set it up. Until
   // then we never greet with "Welcome back" or surface computed marks/ratings,
   // which would otherwise render as fake data for a brand-new account.
@@ -174,11 +169,8 @@ export default function DashboardPage() {
           </Card>
 
           <Card>
-            <div className="between" style={{ marginBottom: 14 }}>
+            <div style={{ marginBottom: 14 }}>
               <span className="eyebrow">Suggested next actions</span>
-              <Link href="/plan" className="link">
-                View plan
-              </Link>
             </div>
             <div className="stack">
               {actions.map((action, i) => (
@@ -219,27 +211,6 @@ export default function DashboardPage() {
             <Link href="/profile">
               <Button variant="secondary" block>
                 Edit profile
-              </Button>
-            </Link>
-          </Card>
-
-          <Card>
-            <div className="between" style={{ marginBottom: 12 }}>
-              <span className="eyebrow">Recruiting plan</span>
-              <b>
-                {doneCount}/{PLAN_STEPS}
-              </b>
-            </div>
-            <Progress value={planPercent} />
-            <p className="h3" style={{ marginTop: 14 }}>
-              {planPercent}% complete
-            </p>
-            <p className="muted" style={{ marginTop: 4, marginBottom: 14 }}>
-              {doneCount === 0 ? "Start with the first step of your recruiting plan." : "Keep working through your recruiting steps."}
-            </p>
-            <Link href="/plan">
-              <Button variant="secondary" block>
-                {doneCount === 0 ? "Start plan" : "Continue plan"}
               </Button>
             </Link>
           </Card>

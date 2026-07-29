@@ -9,7 +9,6 @@ const PRIVATE = [
   "/schools",
   "/school",
   "/recommended",
-  "/plan",
   "/email-builder",
   "/outreach",
   "/profile",

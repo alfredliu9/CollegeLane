@@ -7,15 +7,14 @@ import { clearAccountCache, prefetchAccountState } from "@/lib/account-state";
 
 const NAV = [
   { href: "/dashboard", label: "Dashboard" },
+  { href: "/profile", label: "Profile" },
   { href: "/assessment", label: "Assessment" },
   { href: "/schools", label: "Schools" },
   { href: "/recommended", label: "Recommended" },
-  { href: "/plan", label: "Plan" },
   { href: "/outreach", label: "Outreach" },
   { href: "/email-builder", label: "Email builder" },
-  { href: "/profile", label: "Profile" },
 ];
-const MOBILE_TABS = ["/dashboard", "/schools", "/recommended", "/plan", "/profile"];
+const MOBILE_TABS = ["/dashboard", "/profile", "/schools", "/recommended", "/email-builder"];
 
 export function AppShell({ children, email }: { children: React.ReactNode; email?: string }) {
   const path = usePathname();
@@ -25,7 +24,7 @@ export function AppShell({ children, email }: { children: React.ReactNode; email
   // Warm the cache for the data most pages need, so the first navigation to a
   // page shows data instantly instead of a spinner.
   useEffect(() => {
-    prefetchAccountState(["cl-athlete", "cl-schools", "cl-tasks", "cl-outreach"]);
+    prefetchAccountState(["cl-athlete", "cl-schools", "cl-outreach"]);
   }, []);
 
   async function logout() {
