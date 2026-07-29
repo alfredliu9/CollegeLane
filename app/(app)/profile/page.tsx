@@ -77,12 +77,14 @@ export default function ProfilePage() {
     }
   }, [loading, data]);
 
-  // Detect a real personal best on the PRIMARY result. Auto-save fires on every
+  // Detect a personal best on the PRIMARY result. Auto-save fires on every
   // keystroke, so we debounce and only compare the *settled* value against the
   // baseline — this avoids celebrating half-typed marks (e.g. "1" for "10.55").
   // Running events improve when the time drops; jumps improve when distance
-  // grows. Zero / first-entry marks and event switches update the baseline
-  // silently without ever showing the toast.
+  // grows. We also celebrate the FIRST valid mark for an event: when there is no
+  // usable prior baseline (missing, different event, or a non-positive mark) the
+  // toast fires with oldMark = 0 as a sentinel meaning "first result". Event
+  // switches and empty marks update the baseline silently without a toast.
   useEffect(() => {
     if (!hydrated.current) return;
     const event = form.event;
@@ -90,17 +92,36 @@ export default function ProfilePage() {
     const timer = setTimeout(() => {
       const baseline = primaryBaseline.current;
       primaryBaseline.current = { event, performance };
-      if (!baseline || baseline.event !== event) return;
-      if (baseline.performance <= 0 || performance <= 0) return;
-      const improved = isRunningEvent(event)
-        ? performance < baseline.performance
-        : performance > baseline.performance;
-      if (!improved) return;
-      const oldRating = collegeRating({ ...form, performance: baseline.performance });
+      if (performance <= 0) return;
+      const hasPriorBaseline =
+        Boolean(baseline) && baseline!.event === event && baseline!.performance > 0;
+      if (hasPriorBaseline) {
+        const priorMark = baseline!.performance;
+        const improved = isRunningEvent(event)
+          ? performance < priorMark
+          : performance > priorMark;
+        if (!improved) return;
+        const oldRating = collegeRating({ ...form, performance: priorMark });
+        const newRating = collegeRating({ ...form, performance });
+        setPerfToast({
+          event,
+          oldMark: priorMark,
+          newMark: performance,
+          oldRating: oldRating.rating,
+          oldStars: oldRating.stars,
+          newRating: newRating.rating,
+          newStars: newRating.stars,
+          oldPathway: oldRating.pathway,
+          newPathway: newRating.pathway,
+        });
+        return;
+      }
+      // First valid mark for this event: celebrate it with the 0 sentinel.
+      const oldRating = collegeRating({ ...form, performance: 0 });
       const newRating = collegeRating({ ...form, performance });
       setPerfToast({
         event,
-        oldMark: baseline.performance,
+        oldMark: 0,
         newMark: performance,
         oldRating: oldRating.rating,
         oldStars: oldRating.stars,

@@ -80,9 +80,12 @@ export function PerformanceToast({
   newPathway,
   onClose,
 }: PerformanceToastDetails & { onClose: () => void }) {
+  // oldMark <= 0 is the sentinel for the athlete's FIRST valid mark on this
+  // event: there is no genuine "before" value to compare against.
+  const firstEntry = oldMark <= 0;
   const ratingUp = newRating > oldRating;
   const starsUp = newStars > oldStars;
-  const showUpgrade = ratingUp || starsUp;
+  const showUpgrade = firstEntry || ratingUp || starsUp;
   const faster = isRunningEvent(event); // faster time / farther distance — the improvement is already baked into the marks.
   // The toast only ever fires on a genuine improvement, so the rating can only
   // rise; a changed pathway string is therefore always an upgrade to show.
@@ -162,7 +165,7 @@ export function PerformanceToast({
       `}</style>
       <div className="cl-perf-toast" role="status" aria-live="polite">
         <div className="between" style={{ marginBottom: 12, alignItems: "flex-start" }}>
-          <span className="badge badge-accent">New personal best</span>
+          <span className="badge badge-accent">{firstEntry ? "Result logged" : "New personal best"}</span>
           <button
             type="button"
             className="btn btn-ghost btn-sm"
@@ -174,26 +177,40 @@ export function PerformanceToast({
           </button>
         </div>
 
-        <p className="cl-perf-mark">
-          <span>{formatMark(event, oldMark)}</span>
-          <span className="cl-perf-arrow" aria-hidden="true">→</span>
-          <span className="cl-perf-new">{formatMark(event, newMark)}</span>
-        </p>
+        {firstEntry ? (
+          <p className="cl-perf-mark">
+            Your {event.toLowerCase()}: <span className="cl-perf-new">{formatMark(event, newMark)}</span>
+          </p>
+        ) : (
+          <p className="cl-perf-mark">
+            <span>{formatMark(event, oldMark)}</span>
+            <span className="cl-perf-arrow" aria-hidden="true">→</span>
+            <span className="cl-perf-new">{formatMark(event, newMark)}</span>
+          </p>
+        )}
         <p className="muted" style={{ fontSize: 13, marginTop: 2 }}>
-          {faster ? "New best time" : "New best distance"} in the {event.toLowerCase()}.
+          {firstEntry
+            ? `First result logged in the ${event.toLowerCase()}.`
+            : `${faster ? "New best time" : "New best distance"} in the ${event.toLowerCase()}.`}
         </p>
 
         {showUpgrade && (
           <div className="cl-perf-rating">
             <Stars count={newStars} label={`${newStars} of 5 college rating stars`} />
             <div className="cl-perf-rating-nums">
-              <span>{oldRating}</span>
-              <span className="cl-perf-arrow" aria-hidden="true">→</span>
-              <span className="cl-perf-rating-new">{newRating}</span>
-              {starsUp && (
-                <span className="badge badge-accent" style={{ marginLeft: 8 }}>
-                  ▲{newStars - oldStars} star{newStars - oldStars > 1 ? "s" : ""}
-                </span>
+              {firstEntry ? (
+                <span className="cl-perf-rating-new">{newRating}</span>
+              ) : (
+                <>
+                  <span>{oldRating}</span>
+                  <span className="cl-perf-arrow" aria-hidden="true">→</span>
+                  <span className="cl-perf-rating-new">{newRating}</span>
+                  {starsUp && (
+                    <span className="badge badge-accent" style={{ marginLeft: 8 }}>
+                      ▲{newStars - oldStars} star{newStars - oldStars > 1 ? "s" : ""}
+                    </span>
+                  )}
+                </>
               )}
             </div>
           </div>
