@@ -566,9 +566,14 @@ export default function EmailBuilderPage() {
                       </a>{" "}
                       <span className="faint">({formatBytes(u.size)})</span>
                     </span>
-                    <Button variant="ghost" size="sm" onClick={() => removeUpload(u.id)}>
-                      Remove
-                    </Button>
+                    <span className="row" style={{ gap: 8 }}>
+                      <a className="btn btn-secondary btn-sm" href={u.url} download={u.filename}>
+                        Download
+                      </a>
+                      <Button variant="ghost" size="sm" onClick={() => removeUpload(u.id)}>
+                        Remove
+                      </Button>
+                    </span>
                   </div>
                 ))}
               </div>
@@ -597,13 +602,23 @@ export default function EmailBuilderPage() {
             {uploads.length > 0 && (
               <div>
                 <span className="label">Attachments</span>
-                <div className="row wrap" style={{ marginTop: 6 }}>
+                <div className="stack" style={{ gap: 8, marginTop: 6 }}>
                   {uploads.map((u) => (
-                    <Badge key={u.id} tone="muted">
-                      {u.filename}
-                    </Badge>
+                    <div key={u.id} className="between" style={{ fontSize: 13 }}>
+                      <span>
+                        <Badge tone="muted">{u.kind === "video" ? "Video" : "Transcript"}</Badge>{" "}
+                        {u.filename}
+                      </span>
+                      <a className="btn btn-secondary btn-sm" href={u.url} download={u.filename}>
+                        Download
+                      </a>
+                    </div>
                   ))}
                 </div>
+                <p className="hint" style={{ marginTop: 8 }}>
+                  Email attachments cannot be copied to the clipboard. Download your video and transcript here, then attach them in
+                  your email after pasting the draft.
+                </p>
               </div>
             )}
 
