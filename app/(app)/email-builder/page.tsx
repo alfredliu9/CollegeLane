@@ -413,9 +413,16 @@ export default function EmailBuilderPage() {
               <Textarea value={body} readOnly rows={16} />
             </Field>
 
-            <p className="hint">
-              Attach your transcript and a competition video to the email yourself before sending.
-            </p>
+            <div
+              className="notice notice-warn"
+              style={{ padding: "16px 18px", alignItems: "center", gap: 14 }}
+            >
+              <span aria-hidden="true" style={{ fontSize: 26, lineHeight: 1 }}>📎</span>
+              <span style={{ fontSize: 15, fontWeight: 700, lineHeight: 1.45 }}>
+                Remember to attach your transcript and a competition video to the email yourself before you
+                send it. CollegeLane cannot add attachments for you.
+              </span>
+            </div>
 
             <div className="row wrap">
               <Button onClick={copyDraft} disabled={!canCopy}>
