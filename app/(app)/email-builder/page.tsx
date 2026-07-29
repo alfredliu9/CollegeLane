@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Badge, Button, Card, Field, Input, Notice, PageHead, Textarea } from "@/components/ui";
 import { useAccountState } from "@/lib/account-state";
-import { emptyAthlete, formatPerformance, type AthleteProfile } from "@/lib/recruiting";
+import { emptyAthlete, formatPerformance, type AthleteProfile, type EventName } from "@/lib/recruiting";
 
 type SchoolChoice = { id: string; name: string; city: string; region: string; division: string; pathway: string };
 type CoachChoice = { id: string; name: string; role: string; email: string; sourceUrl: string };
@@ -26,6 +26,31 @@ function formatBytes(bytes: number) {
   if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   if (bytes >= 1024) return `${Math.round(bytes / 1024)} KB`;
   return `${bytes} B`;
+}
+
+// Which coaching specialty the athlete's primary event falls under. Sprint
+// distances (100/200/400) group together; the horizontal jumps group together.
+type EventGroup = "sprints" | "jumps";
+function eventGroupFor(event: EventName): EventGroup {
+  return event === "Long jump" || event === "Triple jump" ? "jumps" : "sprints";
+}
+
+// A role naming the head coach or a director is general staff, not an event
+// specialist, so on its own it never satisfies the event-specific check.
+function isGeneralRole(role: string) {
+  const r = role.toLowerCase();
+  return r.includes("head") || r.includes("director");
+}
+
+// Whether a coach's role covers the athlete's specific event. Sprint roles match
+// on a sprint/speed specialty or the athlete's exact distance; jumps roles match
+// on a jumps/horizontal specialty.
+function roleCoversEvent(role: string, event: EventName): boolean {
+  const r = role.trim().toLowerCase();
+  if (!r || isGeneralRole(r)) return false;
+  if (eventGroupFor(event) === "jumps") return r.includes("jump") || r.includes("horizontal");
+  const distance = event.replace(" metres", ""); // "100" | "200" | "400"
+  return r.includes("sprint") || r.includes("speed") || r.includes(distance);
 }
 
 export default function EmailBuilderPage() {
@@ -176,6 +201,17 @@ export default function EmailBuilderPage() {
     if (!q) return coaches;
     return coaches.filter((c) => `${c.name} ${c.role}`.toLowerCase().includes(q));
   }, [coaches, coachFilter]);
+
+  // Whether any loaded coach (or a manually added recipient with a role) is
+  // listed specifically for the athlete's event. Used to nudge the athlete
+  // toward the head coach or recruiting coordinator when nobody covers it.
+  const hasEventCoach = useMemo(
+    () => [...coaches, ...manualRecipients].some((c) => roleCoversEvent(c.role, athlete.event)),
+    [coaches, manualRecipients, athlete.event],
+  );
+  // Only surface the gap once a real coach list has loaded; the empty-list case
+  // is already covered by the manual-add messaging.
+  const showEventGapNote = !loadingCoaches && coaches.length > 0 && !hasEventCoach;
 
   // Everyone the draft should be addressed to: checked coaches plus anyone the
   // athlete added by hand.
@@ -395,6 +431,14 @@ export default function EmailBuilderPage() {
                 )}
                 {!loadingCoaches && coaches.length > 0 && visibleCoaches.length === 0 && (
                   <p className="hint">No coaches match “{coachFilter}”.</p>
+                )}
+
+                {/* None of the loaded coaches specialise in the athlete's event. */}
+                {showEventGapNote && (
+                  <Notice tone="warn">
+                    No coach is listed specifically for your event ({athlete.event}) at this program. Consider addressing the head coach
+                    or the program&apos;s recruiting coordinator.
+                  </Notice>
                 )}
 
                 {/* Manual recipients: available whether or not the lookup found anyone. */}

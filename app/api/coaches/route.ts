@@ -57,7 +57,7 @@ export async function GET(request: Request) {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${process.env.OPENAI_API_KEY}` },
     body: JSON.stringify({
-      model: "gpt-5.6-sol",
+      model: "gpt-4o",
       reasoning: { effort: "medium" },
       tools: [{ type: "web_search" }],
       max_output_tokens: 1800,
