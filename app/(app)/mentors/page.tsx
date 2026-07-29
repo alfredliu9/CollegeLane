@@ -1,20 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Badge, Button, Card, Empty, Field, Notice, PageHead, Select, Textarea } from "@/components/ui";
-import { useAccountState } from "@/lib/account-state";
+import { Badge, Button, Card, Empty, Field, Notice, PageHead, Select } from "@/components/ui";
 import type { EventName } from "@/lib/recruiting";
-
-// A saved request to talk with a peer mentor. Persisted per account under
-// "cl-call-requests" so the "Your requests" list survives a page reload.
-interface CallRequest {
-  id: string;
-  mentorName: string;
-  mentorSchool: string;
-  topic: string;
-  message: string;
-  requestedAt: string;
-}
 
 // An illustrative peer mentor. Every profile below is a fictional sample, not a
 // real athlete, so nothing here should read as a bookable real person.
@@ -28,8 +16,8 @@ interface Mentor {
   focus: string[];
 }
 
-// Shared focus/topic vocabulary. Kept in one place so the filter, the request
-// form, and every mentor's tags all speak the same language.
+// Shared focus/topic vocabulary. Kept in one place so the filter and every
+// mentor's tags all speak the same language.
 const FOCUS_OPTIONS = [
   "Recruiting emails",
   "Balancing academics",
@@ -136,29 +124,9 @@ const MENTORS: Mentor[] = [
   },
 ];
 
-const TIME_OPTIONS = [
-  "Weekday evenings",
-  "Weekday afternoons",
-  "Weekend mornings",
-  "Weekend afternoons",
-  "Flexible, any time",
-];
-
 export default function MentorsPage() {
-  const { data: requests, save: saveRequests, loading: requestsLoading } = useAccountState<CallRequest[]>(
-    "cl-call-requests",
-    [],
-  );
-
   const [eventFilter, setEventFilter] = useState<string>("All events");
   const [focusFilter, setFocusFilter] = useState<string>("All topics");
-
-  // Which mentor's request panel is open, plus the in-progress form fields.
-  const [openId, setOpenId] = useState<string | null>(null);
-  const [formTopic, setFormTopic] = useState<string>(FOCUS_OPTIONS[0]);
-  const [formMessage, setFormMessage] = useState<string>("");
-  const [formTime, setFormTime] = useState<string>(TIME_OPTIONS[0]);
-  const [justSentId, setJustSentId] = useState<string | null>(null);
 
   const filtered = useMemo(
     () =>
@@ -169,36 +137,6 @@ export default function MentorsPage() {
       ),
     [eventFilter, focusFilter],
   );
-
-  function openRequest(mentor: Mentor) {
-    setOpenId(mentor.id);
-    setFormTopic(mentor.focus[0] ?? FOCUS_OPTIONS[0]);
-    setFormMessage("");
-    setFormTime(TIME_OPTIONS[0]);
-    setJustSentId(null);
-  }
-
-  function submitRequest(mentor: Mentor) {
-    if (requestsLoading) return;
-    const next: CallRequest = {
-      id: `${Date.now()}-${mentor.id}`,
-      mentorName: mentor.name,
-      mentorSchool: mentor.school,
-      topic: formTopic + (formTime ? ` · ${formTime}` : ""),
-      message: formMessage.trim(),
-      requestedAt: new Date().toISOString(),
-    };
-    void saveRequests([next, ...requests]);
-    setOpenId(null);
-    setJustSentId(mentor.id);
-  }
-
-  function formatWhen(iso: string): string {
-    const d = new Date(iso);
-    return Number.isNaN(d.getTime())
-      ? ""
-      : d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
-  }
 
   return (
     <div className="page">
@@ -211,8 +149,8 @@ export default function MentorsPage() {
 
       <div className="stack">
         <Notice>
-          Sample mentors shown for now. Real athlete mentors are coming soon, and any requests you send are saved to your
-          account so they are here when the program opens.
+          Mentor call booking is coming soon. For now you can browse the sample mentors we are lining up. These are
+          illustrative examples, and real athlete mentors are on the way.
         </Notice>
 
         <Card>
@@ -246,128 +184,38 @@ export default function MentorsPage() {
               {filtered.length} mentor{filtered.length === 1 ? "" : "s"} shown
             </p>
             <div className="grid-2">
-              {filtered.map((m) => {
-                const isOpen = openId === m.id;
-                const wasSent = justSentId === m.id;
-                return (
-                  <Card key={m.id} className="lift">
-                    <div className="stack" style={{ gap: 12 }}>
-                      <div className="between">
-                        <h2 className="h3">{m.name}</h2>
-                        <Badge tone="muted">{m.classYear}</Badge>
-                      </div>
-
-                      <div className="row wrap" style={{ gap: 8 }}>
-                        <span className="muted" style={{ fontSize: 13 }}>{m.school}</span>
-                        <Badge tone="brand">{m.event}</Badge>
-                      </div>
-
-                      <p className="muted" style={{ fontSize: 14 }}>{m.blurb}</p>
-
-                      <div className="row wrap" style={{ gap: 6 }}>
-                        {m.focus.map((f) => (
-                          <Badge key={f} tone="accent">{f}</Badge>
-                        ))}
-                      </div>
-
-                      {wasSent ? (
-                        <Notice>
-                          Request sent. You can find it under Your requests below.
-                        </Notice>
-                      ) : null}
-
-                      {isOpen ? (
-                        <div
-                          className="stack"
-                          style={{
-                            gap: 12,
-                            paddingTop: 14,
-                            borderTop: "1px solid var(--line)",
-                          }}
-                        >
-                          <Field label="Preferred topic">
-                            <Select value={formTopic} onChange={(e) => setFormTopic(e.target.value)}>
-                              {FOCUS_OPTIONS.map((f) => (
-                                <option key={f}>{f}</option>
-                              ))}
-                            </Select>
-                          </Field>
-                          <Field label="Preferred time" hint="A rough window works. No calendar needed yet.">
-                            <Select value={formTime} onChange={(e) => setFormTime(e.target.value)}>
-                              {TIME_OPTIONS.map((t) => (
-                                <option key={t}>{t}</option>
-                              ))}
-                            </Select>
-                          </Field>
-                          <Field label="Short message" hint="One or two sentences on what you want to ask.">
-                            <Textarea
-                              rows={3}
-                              value={formMessage}
-                              onChange={(e) => setFormMessage(e.target.value)}
-                              placeholder={`Hi ${m.name.split(" ")[0]}, I would love to hear how you...`}
-                            />
-                          </Field>
-                          <div className="row" style={{ gap: 8 }}>
-                            <Button size="sm" onClick={() => submitRequest(m)} disabled={requestsLoading}>
-                              Send request
-                            </Button>
-                            <Button variant="ghost" size="sm" onClick={() => setOpenId(null)}>
-                              Cancel
-                            </Button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="row" style={{ gap: 8 }}>
-                          <Button variant="secondary" size="sm" onClick={() => openRequest(m)}>
-                            Request a call
-                          </Button>
-                        </div>
-                      )}
+              {filtered.map((m) => (
+                <Card key={m.id} className="lift">
+                  <div className="stack" style={{ gap: 12 }}>
+                    <div className="between">
+                      <h2 className="h3">{m.name}</h2>
+                      <Badge tone="muted">{m.classYear}</Badge>
                     </div>
-                  </Card>
-                );
-              })}
+
+                    <div className="row wrap" style={{ gap: 8 }}>
+                      <span className="muted" style={{ fontSize: 13 }}>{m.school}</span>
+                      <Badge tone="brand">{m.event}</Badge>
+                    </div>
+
+                    <p className="muted" style={{ fontSize: 14 }}>{m.blurb}</p>
+
+                    <div className="row wrap" style={{ gap: 6 }}>
+                      {m.focus.map((f) => (
+                        <Badge key={f} tone="accent">{f}</Badge>
+                      ))}
+                    </div>
+
+                    <div className="row" style={{ gap: 8 }}>
+                      <Button variant="secondary" size="sm" disabled aria-disabled="true">
+                        Coming soon
+                      </Button>
+                    </div>
+                  </div>
+                </Card>
+              ))}
             </div>
           </>
         )}
-
-        <Card>
-          <div className="stack" style={{ gap: 12 }}>
-            <h2 className="h3">Your requests</h2>
-            {requestsLoading ? (
-              <p className="muted">Loading your saved requests…</p>
-            ) : requests.length === 0 ? (
-              <p className="muted">
-                No requests yet. Pick a mentor above and send a note about what you want to talk through.
-              </p>
-            ) : (
-              <div className="stack" style={{ gap: 10 }}>
-                {requests.map((r) => (
-                  <div
-                    key={r.id}
-                    style={{
-                      border: "1px solid var(--line)",
-                      borderRadius: "var(--radius-sm)",
-                      padding: 14,
-                    }}
-                  >
-                    <div className="between">
-                      <span className="h3" style={{ fontSize: 15 }}>{r.mentorName}</span>
-                      <span className="faint" style={{ fontSize: 12 }}>{formatWhen(r.requestedAt)}</span>
-                    </div>
-                    <div className="row wrap" style={{ gap: 8, marginTop: 6 }}>
-                      <span className="muted" style={{ fontSize: 13 }}>{r.mentorSchool}</span>
-                      <Badge tone="accent">{r.topic}</Badge>
-                    </div>
-                    {r.message ? (
-                      <p className="muted" style={{ fontSize: 13, marginTop: 8 }}>{r.message}</p>
-                    ) : null}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </Card>
       </div>
     </div>
   );
