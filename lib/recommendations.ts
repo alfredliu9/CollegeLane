@@ -4,7 +4,7 @@ import {schoolCatalog,verifiedMetrics,type SchoolProgram,type VerifiedMetric} fr
 export const RECOMMENDATION_VERSION="1.0.0";
 export const SCHOOL_CATALOG_VERSION="2026-07-22-gender-explicit-v1";
 
-type Category="Reach"|"Competitive"|"Strong Fit";
+type Category="Reach"|"Strong Fit";
 type Confidence="High"|"Standard"|"Low";
 
 export interface EventComparison {
@@ -110,8 +110,13 @@ function fit(gap:number){
   return Math.max(0,Math.min(1,f));
 }
 
+// value = the athlete's advantage over the roster average (positive = the
+// athlete is faster/better than the roster). Strong Fit = the roster is the
+// same as or a bit worse than the athlete, so they meet or slightly exceed the
+// level. Reach = the roster is faster/better than the athlete. Programs the
+// athlete is far above are dropped in scoreSchool.
 function category(value:number):Category{
-  return value<-.03?"Reach":value>.03?"Strong Fit":"Competitive";
+  return value<0?"Reach":"Strong Fit";
 }
 
 function confidence(metrics:VerifiedMetric[]):Confidence{
@@ -129,6 +134,9 @@ function scoreSchool(profile:AthleteProfile,school:SchoolProgram,results:ReturnT
   if(!matches.length)return null;
   const weightTotal=matches.reduce((sum,item)=>sum+item.weight,0);
   const weightedGap=matches.reduce((sum,item)=>sum+item.gap*item.weight,0)/weightTotal;
+  // Drop programs the athlete is far above (roster more than ~10% weaker than
+  // their mark). Those are not useful targets and shouldn't clutter Strong Fit.
+  if(weightedGap>0.1)return null;
   const gender=profile.gender==="Women"?"Women":"Men";
   // Rank by program quality (how strong its roster is) gated by fit, so the
   // strongest programs the athlete can realistically compete at rank highest
@@ -164,9 +172,9 @@ function stableSort(items:Recommendation[]){
 }
 
 function compose(items:Recommendation[],limit:number){
-  const quotas:Record<Category,number>={"Reach":3,"Competitive":5,"Strong Fit":3};
+  const quotas:Record<Category,number>={"Strong Fit":8,"Reach":6};
   const selected:Recommendation[]=[];
-  for(const group of ["Reach","Competitive","Strong Fit"] as Category[])selected.push(...stableSort(items.filter(x=>x.category===group&&x.dataConfidence!=="Low")).slice(0,quotas[group]));
+  for(const group of ["Strong Fit","Reach"] as Category[])selected.push(...stableSort(items.filter(x=>x.category===group&&x.dataConfidence!=="Low")).slice(0,quotas[group]));
   const remaining=stableSort(items.filter(item=>item.dataConfidence!=="Low"&&!selected.some(x=>x.schoolId===item.schoolId)));
   selected.push(...remaining.slice(0,Math.max(0,limit-selected.length)));
   return stableSort(selected).slice(0,limit);

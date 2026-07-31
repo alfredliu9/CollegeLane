@@ -23,20 +23,18 @@ type Status =
 
 // order matters: this is the top-to-bottom display order, most likely to get
 // interest first (Strong Fit) down to the least likely stretch picks (Reach)
-const CATEGORIES = ["Strong Fit", "Competitive", "Reach"] as const;
+const CATEGORIES = ["Strong Fit", "Reach"] as const;
 type Category = (typeof CATEGORIES)[number];
 
 const CATEGORY_BLURB: Record<Category, string> = {
-  Reach: "Your verified marks currently sit below these roster averages.",
-  Competitive: "Your verified marks are close to these roster averages.",
-  "Strong Fit": "Your verified marks currently sit above these roster averages.",
+  "Strong Fit": "These roster averages are the same as, or a bit below, your verified marks.",
+  Reach: "These roster averages are faster or stronger than your verified marks.",
 };
 
 // short human caption for what each group means in offer-likelihood terms.
 // framed as an estimate, never a promise of an offer.
 const CATEGORY_SUBLABEL: Record<Category, string> = {
   "Strong Fit": "Strongest estimated chance of interest",
-  Competitive: "Realistic targets",
   Reach: "Stretch programs, least likely",
 };
 
