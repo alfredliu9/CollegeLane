@@ -21,13 +21,23 @@ type Status =
   | { kind: "no-profile"; message: string }
   | { kind: "error"; message: string };
 
-const CATEGORIES = ["Reach", "Competitive", "Strong Fit"] as const;
+// order matters: this is the top-to-bottom display order, most likely to get
+// interest first (Strong Fit) down to the least likely stretch picks (Reach)
+const CATEGORIES = ["Strong Fit", "Competitive", "Reach"] as const;
 type Category = (typeof CATEGORIES)[number];
 
 const CATEGORY_BLURB: Record<Category, string> = {
   Reach: "Your verified marks currently sit below these roster averages.",
   Competitive: "Your verified marks are close to these roster averages.",
   "Strong Fit": "Your verified marks currently sit above these roster averages.",
+};
+
+// short human caption for what each group means in offer-likelihood terms.
+// framed as an estimate, never a promise of an offer.
+const CATEGORY_SUBLABEL: Record<Category, string> = {
+  "Strong Fit": "Strongest estimated chance of interest",
+  Competitive: "Realistic targets",
+  Reach: "Stretch programs, least likely",
 };
 
 const LIMITS = [12, 24] as const;
@@ -195,6 +205,10 @@ export default function RecommendedPage() {
           The same profile and data always produce the same list. Nothing here guarantees admission, recruitment, roster
           placement, or scholarships.
         </p>
+        <p>
+          The list is ordered by how likely a program is to be interested, highest at the top. This is an educational
+          estimate, not a guarantee, and program quality is ranked within every group.
+        </p>
       </PageHead>
 
       <div className="between wrap" style={{ marginBottom: 18 }}>
@@ -268,7 +282,13 @@ function Results({
   const hasRecommendations = data.recommendations.length > 0;
   const grouped = CATEGORIES.map((category) => ({
     category,
-    items: data.recommendations.filter((item) => item.category === category),
+    // the api already ranks by match score, but sort here too so the quality
+    // ranking is guaranteed in every group regardless of incoming order.
+    // slice() first so we dont mutate the response array.
+    items: data.recommendations
+      .filter((item) => item.category === category)
+      .slice()
+      .sort((a, b) => b.overallScore - a.overallScore),
   })).filter((group) => group.items.length > 0);
 
   const [expandedGroups, setExpandedGroups] = useState<Set<Category>>(new Set());
@@ -319,7 +339,10 @@ function Results({
         return (
           <section key={group.category} className="stack" style={{ gap: 12 }}>
             <div>
-              <h2 className="h2">{group.category}</h2>
+              <div className="row wrap" style={{ gap: 8, alignItems: "baseline" }}>
+                <h2 className="h2">{group.category}</h2>
+                <Badge tone="muted">{CATEGORY_SUBLABEL[group.category]}</Badge>
+              </div>
               <p className="muted" style={{ fontSize: 13 }}>{CATEGORY_BLURB[group.category]}</p>
             </div>
             <div className="grid-2">
