@@ -1,4 +1,4 @@
-import {isRunningEvent,type AthleteProfile,type AthleteResult,type EventName} from "@/lib/recruiting";
+import {isRunningEvent,rateMark,type AthleteProfile,type AthleteResult,type EventName} from "@/lib/recruiting";
 import {schoolCatalog,verifiedMetrics,type SchoolProgram,type VerifiedMetric} from "@/data/schoolCatalog";
 
 export const RECOMMENDATION_VERSION="1.0.0";
@@ -98,16 +98,16 @@ function gap(result:AthleteResult,average:number){
   return isRunningEvent(result.event)?(average-result.performance)/average:(result.performance-average)/average;
 }
 
-// Match score reflects how well the athlete's LEVEL fits the program's level.
-// It peaks when the athlete sits right around (slightly above) the roster
-// average and falls off the further they are in EITHER direction: being far
-// below is a reach, being far above means the program sits well under their
-// level. Below the sweet spot is penalized more steeply than above it.
-function matchScore(gap:number){
-  const ideal=0.02;                        // ~2% above the roster average is the sweet spot
-  const dev=gap-ideal;
-  const penalty=dev<0?-dev*6:dev*2.2;
-  return Math.max(0,Math.min(100,Math.round(100-penalty*100)));
+// How realistically the athlete fits a program, from its verified roster
+// average. gap > 0 means the athlete is stronger than the roster (a safer,
+// possibly over-qualified pick); gap < 0 means the program is stronger (a
+// reach). Fit stays near 1 while the athlete is competitive and tapers as they
+// get far above (program too weak for them) or far below (unrealistic reach).
+// It gates program quality so we surface the strongest programs the athlete can
+// still compete at, and sink weak programs where they'd be over-qualified.
+function fit(gap:number){
+  const f=gap>=0?1-Math.max(0,gap-0.03)*4:1+gap*3.5;
+  return Math.max(0,Math.min(1,f));
 }
 
 function category(value:number):Category{
@@ -129,10 +129,14 @@ function scoreSchool(profile:AthleteProfile,school:SchoolProgram,results:ReturnT
   if(!matches.length)return null;
   const weightTotal=matches.reduce((sum,item)=>sum+item.weight,0);
   const weightedGap=matches.reduce((sum,item)=>sum+item.gap*item.weight,0)/weightTotal;
-  const weightedMatch=matches.reduce((sum,item)=>sum+matchScore(item.gap)*item.weight,0)/weightTotal;
+  const gender=profile.gender==="Women"?"Women":"Men";
+  // Rank by program quality (how strong its roster is) gated by fit, so the
+  // strongest programs the athlete can realistically compete at rank highest
+  // and weak programs where they'd be over-qualified sink to the bottom.
+  const weightedOverall=matches.reduce((sum,item)=>sum+rateMark(item.result.event,gender,item.metric.rosterAverage).rating*fit(item.gap)*item.weight,0)/weightTotal;
   const pathway=selectedProgram(profile,school);
   const region=regionMatch(profile.region,school);
-  const overall=Math.round(weightedMatch*.82+(pathway?9:0)+(region?9:0));
+  const overall=Math.min(100,Math.round(Math.max(0,Math.min(100,weightedOverall)))+(region?3:0));
   const comparisons:EventComparison[]=matches.map(({result,metric,gap:value})=>({
     event:result.event,athleteMark:result.performance,rosterAverage:metric.rosterAverage,gapPercent:rounded(value*100),
     sampleSize:metric.sampleSize,season:metric.season,reviewedAt:metric.reviewedAt,sourceUrl:metric.sourceUrl,

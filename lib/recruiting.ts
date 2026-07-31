@@ -103,9 +103,10 @@ const ratingBands:Record<"Men"|"Women",Record<EventName,number[]>>={
   Women:{"100 metres":[13.10,12.60,12.20,11.80,11.40,11.15],"200 metres":[26.80,25.60,24.60,23.90,23.50,23.00],"400 metres":[62.50,60.00,56.50,54.50,53.50,52.00],"Long jump":[4.90,5.30,5.70,6.00,6.20,6.50],"Triple jump":[10.20,11.00,11.70,12.30,13.25,13.75]}
 };
 
-export function collegeRating(profile:AthleteProfile){
-  const gender=profile.gender||"Men",anchors=ratingBands[gender][profile.event],running=isRunningEvent(profile.event),scores=[40,55,70,82,92,100];
-  const performance=profile.performance;
+// Rate any single mark (an athlete's PB, or a program's roster average) on the
+// gender/event bands, returning a 35-100 rating + 1-5 stars. Higher = stronger.
+export function rateMark(event:EventName,gender:"Men"|"Women",performance:number){
+  const anchors=ratingBands[gender][event],running=isRunningEvent(event),scores=[40,55,70,82,92,100];
   let rating=running?(performance>=anchors[0]?scores[0]:scores.at(-1)!):(performance<=anchors[0]?scores[0]:scores.at(-1)!);
   for(let i=0;i<anchors.length-1;i++){
     const within=running?performance<=anchors[i]&&performance>=anchors[i+1]:performance>=anchors[i]&&performance<=anchors[i+1];
@@ -113,10 +114,16 @@ export function collegeRating(profile:AthleteProfile){
   }
   rating=Math.max(35,Math.min(100,rating));
   const stars=rating>=92?5:rating>=82?4:rating>=70?3:rating>=55?2:1;
+  return {rating,stars,entry:anchors[0],elite:anchors.at(-1)!};
+}
+
+export function collegeRating(profile:AthleteProfile){
+  const gender=profile.gender||"Men";
+  const {rating,stars,entry,elite}=rateMark(profile.event,gender,profile.performance);
   const labels=["Emerging","Developing","Collegiate range","Competitive","National-level"];
   const index=stars-1;
   const pathway=rating>=92?"NCAA Division I and top U SPORTS programs":rating>=82?"NCAA Division II, selective Division I, and strong U SPORTS programs":rating>=70?"NCAA Division III, developing Division II, and U SPORTS programs":rating>=55?"development-focused NCAA Division III or U SPORTS programs":"continued development before targeted collegiate outreach";
-  return {rating,stars,index,label:`${labels[index]} · ${pathway}`,pathway,percentile:Math.max(1,Math.min(99,rating)),entry:anchors[0],elite:anchors.at(-1)!};
+  return {rating,stars,index,label:`${labels[index]} · ${pathway}`,pathway,percentile:Math.max(1,Math.min(99,rating)),entry,elite};
 }
 
 export function localAssistantReply(question: string, p: AthleteProfile) {
