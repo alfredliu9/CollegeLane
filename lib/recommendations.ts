@@ -47,13 +47,18 @@ export interface RecommendationResponse {
 }
 
 const eventWeights=[.6,.2,.2];
-const supportedEvents:EventName[]=["100 metres","200 metres","400 metres","Long jump","Triple jump"];
+const supportedEvents:EventName[]=[
+  "100 metres","200 metres","400 metres","800 metres","1500 metres","5000 metres","10,000 metres",
+  "100 metres hurdles","110 metres hurdles","400 metres hurdles","3000 metres steeplechase",
+  "High jump","Pole vault","Long jump","Triple jump",
+  "Shot put","Discus","Hammer throw","Javelin","Decathlon","Heptathlon",
+];
 
 function validResult(result:AthleteResult){
   if(!supportedEvents.includes(result.event)||!Number.isFinite(result.performance)||result.performance<=0)return false;
   if(result.season!=="Outdoor")return false;
   if(isRunningEvent(result.event)&&result.timing!=="Fully automatic")return false;
-  if(["100 metres","Long jump","Triple jump"].includes(result.event)&&result.wind!==null&&Math.abs(result.wind)>2)return false;
+  if(["100 metres","200 metres","100 metres hurdles","110 metres hurdles","Long jump","Triple jump"].includes(result.event)&&result.wind!==null&&Math.abs(result.wind)>2)return false;
   return true;
 }
 

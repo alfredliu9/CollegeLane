@@ -8,6 +8,7 @@ import { useAccountState } from "@/lib/account-state";
 import { useDisplayName } from "@/lib/use-display-name";
 import {
   emptyAthlete,
+  isCombinedEvent,
   isRunningEvent,
   unitFor,
   type AthleteProfile,
@@ -15,7 +16,23 @@ import {
   type EventName,
 } from "@/lib/recruiting";
 
-const EVENTS: EventName[] = ["100 metres", "200 metres", "400 metres", "Long jump", "Triple jump"];
+// build the pickable event list for a given competition gender. shared events
+// go in a sensible order (sprints, distance, hurdles/steeple, jumps, throws),
+// then the gender-specific hurdle tucked next to the other hurdles and the
+// combined event last. women get 100mH + heptathlon, everyone else (men, or
+// gender not chosen yet) gets 110mH + decathlon.
+function eventsFor(gender: AthleteProfile["gender"]): EventName[] {
+  const hurdle: EventName = gender === "Women" ? "100 metres hurdles" : "110 metres hurdles";
+  const combined: EventName = gender === "Women" ? "Heptathlon" : "Decathlon";
+  return [
+    "100 metres", "200 metres", "400 metres",
+    "800 metres", "1500 metres", "5000 metres", "10,000 metres",
+    hurdle, "400 metres hurdles", "3000 metres steeplechase",
+    "High jump", "Pole vault", "Long jump", "Triple jump",
+    "Shot put", "Discus", "Hammer throw", "Javelin",
+    combined,
+  ];
+}
 const PROVINCES = [
   "Ontario", "Alberta", "British Columbia", "Manitoba", "New Brunswick",
   "Newfoundland and Labrador", "Nova Scotia", "Prince Edward Island", "Quebec", "Saskatchewan",
@@ -28,7 +45,9 @@ const GOALS = [
   "Continue competing after high school",
   "Explore available options",
 ];
-const WIND_EVENTS: EventName[] = ["100 metres", "Long jump", "Triple jump"];
+// wind is only recorded for wind-affected events (short sprints, the sprint
+// hurdles, and the horizontal jumps). everything else has no wind field.
+const WIND_EVENTS: EventName[] = ["100 metres", "200 metres", "100 metres hurdles", "110 metres hurdles", "Long jump", "Triple jump"];
 const MAJORS = [
   "Accounting", "Actuarial Science", "Aerospace Engineering", "Anthropology", "Architecture",
   "Art History", "Biochemistry", "Biology", "Biomedical Engineering", "Business Administration",
@@ -106,6 +125,25 @@ export default function OnboardingPage() {
 
   const set = <K extends keyof AthleteProfile>(key: K, value: AthleteProfile[K]) =>
     setForm((prev) => ({ ...prev, [key]: value }));
+
+  // events the athlete can pick, gender-aware. same list feeds the primary and
+  // secondary selects so they always agree.
+  const events = eventsFor(form.gender);
+
+  // when competition gender changes, some events (110mH/decathlon vs
+  // 100mH/heptathlon) flip in or out. reset any now-invalid selection to
+  // 100 metres so the profile never holds an event thats wrong for their gender.
+  const setGender = (gender: AthleteProfile["gender"]) => {
+    const allowed = eventsFor(gender);
+    setForm((prev) => ({
+      ...prev,
+      gender,
+      event: allowed.includes(prev.event) ? prev.event : "100 metres",
+      secondaryResults: (prev.secondaryResults || []).map((r) =>
+        allowed.includes(r.event) ? r : { ...r, event: "100 metres", wind: null },
+      ),
+    }));
+  };
 
   const toggle = (key: "pathways" | "goals", value: string) =>
     setForm((prev) => ({
@@ -217,7 +255,7 @@ export default function OnboardingPage() {
                   </Field>
                 </div>
                 <Field label="Competition gender" hint="Used to match your result with the correct roster benchmarks.">
-                  <Select required value={form.gender || ""} onChange={(e) => set("gender", e.target.value as AthleteProfile["gender"])}>
+                  <Select required value={form.gender || ""} onChange={(e) => setGender(e.target.value as AthleteProfile["gender"])}>
                     <option value="">Select gender</option>
                     <option value="Men">Men</option>
                     <option value="Women">Women</option>
@@ -255,15 +293,15 @@ export default function OnboardingPage() {
               <>
                 <Field label="Primary event">
                   <Select value={form.event} onChange={(e) => set("event", e.target.value as EventName)}>
-                    {EVENTS.map((x) => <option key={x}>{x}</option>)}
+                    {events.map((x) => <option key={x}>{x}</option>)}
                   </Select>
                 </Field>
                 <div className="grid-2">
                   <Field
                     label={`Personal best (${unitFor(form.event)})`}
-                    hint={isRunningEvent(form.event) ? "Enter your time in seconds, like 11.42." : "Enter your mark in metres, like 6.62."}
+                    hint={isCombinedEvent(form.event) ? "Enter your total score in points, like 7200." : isRunningEvent(form.event) ? "Enter your time in seconds, like 11.42." : "Enter your mark in metres, like 6.62."}
                   >
-                    <Input type="number" min="0.01" step="0.01" required value={form.performance || ""} onChange={(e) => set("performance", e.target.value === "" ? 0 : Number(e.target.value))} />
+                    <Input type="number" min="0.01" step={isCombinedEvent(form.event) ? "1" : "0.01"} required value={form.performance || ""} onChange={(e) => set("performance", e.target.value === "" ? 0 : Number(e.target.value))} />
                   </Field>
                   <Field label="Season">
                     <Select value={form.season} onChange={(e) => set("season", e.target.value as AthleteProfile["season"])}>
@@ -311,12 +349,12 @@ export default function OnboardingPage() {
                     <p className="h3" style={{ marginBottom: 12 }}>Extra result {index + 1}</p>
                     <Field label="Event">
                       <Select value={result.event} onChange={(e) => updateSecondary(index, { event: e.target.value as EventName, wind: null })}>
-                        {EVENTS.map((x) => <option key={x}>{x}</option>)}
+                        {events.map((x) => <option key={x}>{x}</option>)}
                       </Select>
                     </Field>
                     <div className="grid-2">
                       <Field label={`Personal best (${unitFor(result.event)})`}>
-                        <Input type="number" min="0.01" step="0.01" placeholder="Optional" value={result.performance || ""} onChange={(e) => updateSecondary(index, { performance: e.target.value === "" ? 0 : Number(e.target.value) })} />
+                        <Input type="number" min="0.01" step={isCombinedEvent(result.event) ? "1" : "0.01"} placeholder="Optional" value={result.performance || ""} onChange={(e) => updateSecondary(index, { performance: e.target.value === "" ? 0 : Number(e.target.value) })} />
                       </Field>
                       <Field label="Season">
                         <Select value={result.season} onChange={(e) => updateSecondary(index, { season: e.target.value as AthleteResult["season"] })}>

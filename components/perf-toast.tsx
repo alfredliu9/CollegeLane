@@ -22,7 +22,9 @@ export interface PerformanceToastDetails {
 function formatMark(event: EventName, mark: number) {
   // Mirror formatPerformance()'s "<value> <unit>" shape without needing a full
   // AthleteProfile, so a bare mark can be rendered on its own.
-  return `${mark.toFixed(2)} ${unitFor(event)}`;
+  const unit = unitFor(event);
+  const value = unit === "pts" ? Math.round(mark).toString() : mark.toFixed(2);
+  return `${value} ${unit}`;
 }
 
 // Render a 0–5 star meter. Filled stars are highlighted; the rest stay faint so
