@@ -73,7 +73,7 @@ Access helpers:
 - `lib/state.ts` — `readState` / `readStateEntry` / `writeState` for the KV store.
 - `lib/account-state.ts` — `useAccountState<T>(key, fallback)` client hook (GET/PUT `/api/state`). **All client persistence goes through this; never use raw localStorage.**
 
-School directory + verified metrics are **bundled static data** (`data/schoolCatalog.ts`, `data/schoolDirectory.json`, `data/verifiedMetrics.json`) — not in the database. Verified metrics are currently **men's only**; the recommendations endpoint refuses women-specific results rather than substituting men's data.
+School directory + verified metrics are **bundled static data** (`data/schoolCatalog.ts`, `data/schoolDirectory.json`, `data/verifiedMetrics.json`) — not in the database. Verified metrics now cover **all outdoor events for both men and women** (~21,600 roster-average rows across ~776 schools), scraped from TFRRS via `scripts/import-tfrrs-metrics.py`. Recommendations work for both genders; events/schools without a verified row fall back to research-only rather than being estimated.
 
 ## API routes (`app/api/*`)
 
