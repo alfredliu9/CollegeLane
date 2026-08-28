@@ -151,14 +151,22 @@ export default function OnboardingPage() {
       [key]: prev[key].includes(value) ? prev[key].filter((x) => x !== value) : [...prev[key], value],
     }));
 
-  const secondary = [
-    ...(form.secondaryResults || []),
-    emptyResult("100 metres"),
-    emptyResult("200 metres"),
-  ].slice(0, 2);
+  // only the additional results the athlete actually added, 0 to 2 of them. no
+  // more padding to two empty blocks, they add + remove on demand instead.
+  const secondary = form.secondaryResults || [];
 
   const updateSecondary = (index: number, patch: Partial<AthleteResult>) =>
     set("secondaryResults", secondary.map((r, i) => (i === index ? { ...r, ...patch } : r)));
+
+  // append one fresh empty result. events[0] is a valid pick for the current
+  // gender (its "100 metres", shared by both), so this never adds an event
+  // thats wrong for their gender.
+  const addSecondary = () =>
+    set("secondaryResults", [...secondary, emptyResult(events[0])].slice(0, 2));
+
+  // drop one result by index, the rest reindex on their own since we filter.
+  const removeSecondary = (index: number) =>
+    set("secondaryResults", secondary.filter((_, i) => i !== index));
 
   // Per-step required fields. Optional steps always pass. The final step also
   // re-checks the essentials so Finish can never save an incomplete profile.
@@ -346,7 +354,10 @@ export default function OnboardingPage() {
                 <Notice>These extra results are optional. Add up to two more marks to round out your profile, or skip and keep going.</Notice>
                 {secondary.map((result, index) => (
                   <div key={`secondary-${index}`} style={{ marginTop: 18 }}>
-                    <p className="h3" style={{ marginBottom: 12 }}>Extra result {index + 1}</p>
+                    <div className="between" style={{ marginBottom: 12 }}>
+                      <p className="h3">Extra result {index + 1}</p>
+                      <Button type="button" variant="secondary" size="sm" onClick={() => removeSecondary(index)}>Remove</Button>
+                    </div>
                     <Field label="Event">
                       <Select value={result.event} onChange={(e) => updateSecondary(index, { event: e.target.value as EventName, wind: null })}>
                         {events.map((x) => <option key={x}>{x}</option>)}
@@ -390,6 +401,11 @@ export default function OnboardingPage() {
                     </div>
                   </div>
                 ))}
+                {secondary.length < 2 && (
+                  <Button type="button" variant="secondary" block onClick={addSecondary} style={{ marginTop: 18 }}>
+                    Add another result
+                  </Button>
+                )}
               </>
             )}
 

@@ -196,14 +196,22 @@ export default function ProfilePage() {
   const toggle = (key: "pathways" | "goals", value: string) =>
     set(key, form[key].includes(value) ? form[key].filter((x) => x !== value) : [...form[key], value]);
 
-  const secondary = [
-    ...(form.secondaryResults || []),
-    emptyResult("100 metres"),
-    emptyResult("200 metres"),
-  ].slice(0, 2);
+  // only the additional results the athlete actually added, 0 to 2 of them. no
+  // more padding to two empty blocks, they add + remove on demand instead.
+  const secondary = form.secondaryResults || [];
 
   const updateSecondary = (index: number, patch: Partial<AthleteResult>) =>
     set("secondaryResults", secondary.map((r, i) => (i === index ? { ...r, ...patch } : r)));
+
+  // append one fresh empty result. events[0] is a valid pick for the current
+  // gender (its "100 metres", shared by both), so this never adds an event
+  // thats wrong for their gender.
+  const addSecondary = () =>
+    set("secondaryResults", [...secondary, emptyResult(events[0])].slice(0, 2));
+
+  // drop one result by index, the rest reindex on their own since we filter.
+  const removeSecondary = (index: number) =>
+    set("secondaryResults", secondary.filter((_, i) => i !== index));
 
   const status = saving ? "Saving…" : touched ? "Changes saved" : "Auto-saves as you edit";
   // Only preview a computed assessment once the athlete has entered the inputs
@@ -310,7 +318,10 @@ export default function ProfilePage() {
 
           {secondary.map((result, index) => (
             <Card key={`secondary-${index}`}>
-              <p className="h2" style={{ marginBottom: 4 }}>Additional result {index + 1}</p>
+              <div className="between" style={{ marginBottom: 4 }}>
+                <p className="h2">Additional result {index + 1}</p>
+                <Button type="button" variant="secondary" size="sm" onClick={() => removeSecondary(index)}>Remove</Button>
+              </div>
               <p className="muted" style={{ marginBottom: 16, fontSize: 13 }}>Add another event or personal best to your saved athlete profile.</p>
               <Field label="Event">
                 <Select value={result.event} onChange={(e) => updateSecondary(index, { event: e.target.value as EventName, wind: null })}>
@@ -353,6 +364,12 @@ export default function ProfilePage() {
               </div>
             </Card>
           ))}
+
+          {secondary.length < 2 && (
+            <Button type="button" variant="secondary" block onClick={addSecondary}>
+              Add another result
+            </Button>
+          )}
 
           <Card>
             <p className="h2" style={{ marginBottom: 16 }}>Academic information</p>
