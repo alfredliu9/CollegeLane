@@ -21,11 +21,22 @@ UA = {"User-Agent": "Mozilla/5.0 (CollegeLane coach research)"}
 # slug variants seen across Sidearm sites for the T&F coaches/staff listing
 SLUGS = {
     "Men": ["mens-track-and-field", "mens-track-field", "mens-outdoor-track-field",
-            "mens-track-and-field-", "mtrack", "mens-cross-country"],
+            "mens-track-and-field-", "mtrack", "mens-cross-country", "mens-track",
+            "mens-xctrack", "mens-cross-country-and-track-and-field"],
     "Women": ["womens-track-and-field", "womens-track-field", "womens-outdoor-track-field",
-              "wtrack", "womens-cross-country"],
-    "Both": ["track-and-field", "track-field", "cross-country", "mens-and-womens-track-and-field"],
+              "wtrack", "womens-cross-country", "womens-track", "womens-xctrack",
+              "womens-cross-country-and-track-and-field"],
+    "Both": ["track-and-field", "track-field", "xctrack", "track", "cross-country", "xc",
+             "mens-and-womens-track-and-field", "track-and-field-cross-country",
+             "cross-country-and-track-and-field", "cross-country-track"],
 }
+# the two Sidearm coach-bio URL shapes: old = /roster/coaches/<name>/<id>, and
+# newer = /roster/season/<year>/staff/<name>. auburntigers.com uses the newer one,
+# which is why the old-only probe wrongly wrote Auburn off as a miss.
+BIO_PATTERNS = [
+    r"/sports/{slug}/roster/coaches/[a-z0-9.\-]+/\d+",
+    r"/sports/{slug}/roster/season/[0-9\-]+/staff/[a-z0-9.\-]+",
+]
 # title text -> event group used to match an athlete's event
 GROUPS = [
     ("vault", ["pole vault", "vault"]),
@@ -65,11 +76,42 @@ def clean_title(raw):
     return t[:80]
 
 
+def _name_from_bio_url(bl):
+    # old url ends /<name>/<id>; new url ends /staff/<name>. take the last segment
+    # that isnt purely digits.
+    segs = bl.rstrip("/").split("/")
+    slug = segs[-2] if segs[-1].isdigit() else segs[-1]
+    return " ".join(w.capitalize() for w in slug.split("-"))
+
+
+def _title_from_bio(bio):
+    # Sidearm serves a clean structured title. read it from whichever layout the
+    # site uses, in order, before falling back to the (generic) <title> tag:
+    #   old:  <dt>Title</dt><dd>Assistant Coach (Throws)</dd>
+    #   new:  ...field-label">Position</span>...field-value">Head Coach</strong>
+    dm = re.search(r"(?is)<dt>\s*(?:Title|Position)\s*</dt>\s*<dd>(.*?)</dd>", bio)
+    if dm:
+        return clean_title(strip_tags(dm.group(1)))
+    hm = re.search(r"(?is)profile-field-label[^>]*>\s*(?:Position|Title)\s*</span>.*?"
+                   r"profile-field-value[^>]*>(.*?)</", bio)
+    if hm:
+        return clean_title(strip_tags(hm.group(1)))
+    tm = re.search(r"(?is)<title>\s*([^<]+?)\s*</title>", bio)
+    if tm:
+        parts = [p.strip() for p in html.unescape(tm.group(1)).split(" - ")]
+        return next((p for p in parts if re.search(r"(?i)coach|director|throw|jump|sprint|distance|hurdl|vault", p)), "")
+    return ""
+
+
 def sidearm_bios(domain, page, slug, gender):
-    """Follow Sidearm per-coach bio pages; each bio serves a mailto: + a title."""
+    """Follow Sidearm per-coach bio pages; each bio serves a mailto: + a title.
+    Handles both the old (/roster/coaches/<name>/<id>) and newer
+    (/roster/season/<year>/staff/<name>) bio URL shapes."""
     rows = []
-    links = sorted(set(re.findall(r"/sports/" + re.escape(slug) + r"/roster/coaches/[a-z0-9.\-]+/\d+", page)))
-    for bl in links[:15]:
+    links = set()
+    for pat in BIO_PATTERNS:
+        links |= set(re.findall(pat.format(slug=re.escape(slug)), page))
+    for bl in sorted(links)[:15]:
         try:
             bio = fetch("https://" + domain + bl)
         except Exception:
@@ -77,20 +119,8 @@ def sidearm_bios(domain, page, slug, gender):
         email = next((e for e in re.findall(r"mailto:([\w.+\-]+@[\w.\-]+\.[a-z]{2,})", bio, re.I)), None)
         if not email:
             continue
-        name = " ".join(w.capitalize() for w in bl.split("/coaches/")[1].rsplit("/", 1)[0].split("-"))
-        # Sidearm serves a clean structured title: <dt>Title</dt><dd>Assistant Coach (Throws)</dd>.
-        # thats FAR more reliable than scraping the bio prose (which mislabels people), so read it first.
-        title = ""
-        dm = re.search(r"(?is)<dt>\s*Title\s*</dt>\s*<dd>(.*?)</dd>", bio)
-        if dm:
-            title = clean_title(strip_tags(dm.group(1)))
-        if not title:
-            # fallback: <title> tag, minus the "- School Athletics" boilerplate
-            tm = re.search(r"(?is)<title>\s*([^<]+?)\s*</title>", bio)
-            if tm:
-                parts = [p.strip() for p in html.unescape(tm.group(1)).split(" - ")]
-                title = next((p for p in parts if re.search(r"(?i)coach|director|throw|jump|sprint|distance|hurdl|vault", p)), "")
-        rows.append({"gender": gender, "name": name, "title": title or "Coach",
+        title = _title_from_bio(bio)
+        rows.append({"gender": gender, "name": _name_from_bio_url(bl), "title": title or "Coach",
                      "eventGroup": group_for(title), "email": email,
                      "sourceUrl": "https://" + domain + bl})
     return rows
@@ -127,20 +157,28 @@ def probe(domain, school_id):
     out = []
     for gender, slugs in SLUGS.items():
         for slug in slugs:
-            url = f"https://{domain}/sports/{slug}/coaches"
-            try:
-                page = fetch(url)
-            except Exception:
-                continue
-            rows = sidearm_bios(domain, page, slug, gender if gender != "Both" else "Both")
+            rows = []
+            # bio links live on the /coaches listing (old) OR the /roster page
+            # (newer sites like Auburn). try both before giving up on a slug.
+            for suffix in ("coaches", "roster"):
+                url = f"https://{domain}/sports/{slug}/{suffix}"
+                try:
+                    page = fetch(url)
+                except Exception:
+                    continue
+                rows = sidearm_bios(domain, page, slug, gender)
+                if not rows and suffix == "coaches":
+                    rows = inline_mailtos(domain, url, page, gender)
+                if rows:
+                    break
             if not rows:
-                rows = inline_mailtos(domain, url, page, gender if gender != "Both" else "Both")
+                continue  # this slug had nothing usable, try the next
             for r in rows:
                 key = (r["email"].lower(), r["gender"])
                 if r["email"] and key not in seen:
                     seen.add(key)
                     out.append({"schoolId": school_id, **r, "reviewedAt": "2026-08-28"})
-            break  # found a working slug for this gender bucket, don't try the rest
+            break  # got this gender bucket, don't try the remaining slugs
     return out
 
 

@@ -46,4 +46,8 @@ tsconfig.tsbuildinfo
 *.tsbuildinfo
 
 # coach-db scratch/working files (only coaches.json ships)
-data/_coach_*
+data/_coach*
+
+# python bytecode
+__pycache__/
+*.pyc
