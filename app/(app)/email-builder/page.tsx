@@ -3,11 +3,14 @@ import { useMemo, useEffect, useState } from "react";
 import Link from "next/link";
 import { Badge, Button, Card, Field, Input, Notice, PageHead, Textarea } from "@/components/ui";
 import { useAccountState } from "@/lib/account-state";
-import { emptyAthlete, formatPerformance, type AthleteProfile, type EventName } from "@/lib/recruiting";
+import { emptyAthlete, eventGroup, formatPerformance, type AthleteProfile, type CoachGroup } from "@/lib/recruiting";
 
 type SchoolChoice = { id: string; name: string; city: string; region: string; division: string; pathway: string };
-// A coach the athlete adds by hand. Name is required; email and role optional.
-type Recipient = { id: string; name: string; role: string; email: string };
+// A coach on the draft. Added from the verified DB (carries group + sourceUrl) or
+// by hand (name required, email/role optional).
+type Recipient = { id: string; name: string; role: string; email: string; group?: CoachGroup; sourceUrl?: string };
+// A verified coach row from /api/coaches (the bundled coach database).
+type SuggestedCoach = { name: string; title: string; email: string; eventGroup: CoachGroup; gender: string; sourceUrl: string };
 
 // Mirrors the record shape read/written by app/(app)/outreach/page.tsx under the
 // same "cl-outreach" account key. Kept in sync by hand (the two pages do not
@@ -22,29 +25,26 @@ type OutreachRecord = {
   followUp: string;
 };
 
-// Which coaching specialty the athlete's primary event falls under. Sprint
-// distances (100/200/400) group together; the horizontal jumps group together.
-type EventGroup = "sprints" | "jumps";
-function eventGroupFor(event: EventName): EventGroup {
-  return event === "Long jump" || event === "Triple jump" ? "jumps" : "sprints";
-}
+// Free-text role keywords per coaching specialty, so a manually-typed role like
+// "Jumps coach" can be matched to the athlete's event group. Coaches added from
+// the verified DB already carry a `group`, so this only backs up manual entries.
+const GROUP_KEYWORDS: Record<CoachGroup, string[]> = {
+  sprints: ["sprint", "speed", "100", "200", "400"],
+  hurdles: ["hurdle"],
+  jumps: ["jump", "horizontal", "vertical"],
+  vault: ["vault"],
+  throws: ["throw", "shot", "discus", "hammer", "javelin", "weight"],
+  distance: ["distance", "cross country", "xc", "mid", "endurance", "steeple", "800", "1500", "5000"],
+  combined: ["combined", "multi", "decathlon", "heptathlon", "pentathlon"],
+  general: [],
+};
 
-// A role naming the head coach or a director is general staff, not an event
-// specialist, so on its own it never satisfies the event-specific check.
-function isGeneralRole(role: string) {
-  const r = role.toLowerCase();
-  return r.includes("head") || r.includes("director");
-}
-
-// Whether a coach's role covers the athlete's specific event. Sprint roles match
-// on a sprint/speed specialty or the athlete's exact distance; jumps roles match
-// on a jumps/horizontal specialty.
-function roleCoversEvent(role: string, event: EventName): boolean {
-  const r = role.trim().toLowerCase();
-  if (!r || isGeneralRole(r)) return false;
-  if (eventGroupFor(event) === "jumps") return r.includes("jump") || r.includes("horizontal");
-  const distance = event.replace(" metres", ""); // "100" | "200" | "400"
-  return r.includes("sprint") || r.includes("speed") || r.includes(distance);
+// Whether a recipient covers the athlete's event group, from an explicit DB group
+// or, failing that, keywords in a hand-typed role.
+function coversGroup(recipient: Recipient, group: CoachGroup): boolean {
+  if (recipient.group) return recipient.group === group;
+  const r = recipient.role.trim().toLowerCase();
+  return r ? (GROUP_KEYWORDS[group] || []).some((k) => r.includes(k)) : false;
 }
 
 export default function EmailBuilderPage() {
@@ -64,10 +64,39 @@ export default function EmailBuilderPage() {
   const [manualEmail, setManualEmail] = useState("");
   const [manualRole, setManualRole] = useState("");
 
+  // Verified coaches for the selected school, ordered so the athlete's event
+  // specialist + head coach lead. Empty when the DB has no coverage for a school.
+  const [suggested, setSuggested] = useState<SuggestedCoach[]>([]);
+  const [loadingCoaches, setLoadingCoaches] = useState(false);
+
   const [copied, setCopied] = useState(false);
   // School+coach combinations added to the tracker this session, so the same
   // draft cannot be logged twice.
   const [addedOutreachKeys, setAddedOutreachKeys] = useState<string[]>([]);
+
+  const athleteGroup = eventGroup(athlete.event);
+
+  // Look up verified coaches whenever the school (or the athlete's event/gender)
+  // changes. group + gender let the API surface the right specialist first.
+  useEffect(() => {
+    if (!school) {
+      setSuggested([]);
+      return;
+    }
+    let active = true;
+    setLoadingCoaches(true);
+    const gender = athlete.gender === "Men" || athlete.gender === "Women" ? `&gender=${athlete.gender}` : "";
+    fetch(`/api/coaches?schoolId=${encodeURIComponent(school.id)}&group=${athleteGroup}${gender}`)
+      .then((r) => (r.ok ? r.json() : { coaches: [] }))
+      .then((data: { coaches?: SuggestedCoach[] }) => {
+        if (active) setSuggested(data.coaches || []);
+      })
+      .catch(() => active && setSuggested([]))
+      .finally(() => active && setLoadingCoaches(false));
+    return () => {
+      active = false;
+    };
+  }, [school, athleteGroup, athlete.gender]);
 
   // Debounced school search (skips once a school is chosen).
   useEffect(() => {
@@ -136,6 +165,18 @@ export default function EmailBuilderPage() {
     setCopied(false);
   }
 
+  // One-click add a verified coach from the lookup. Deduped by email so tapping
+  // twice (or a coach listed on both squad pages) never doubles them up.
+  function addSuggested(coach: SuggestedCoach) {
+    setManualRecipients((prev) =>
+      prev.some((r) => r.email.toLowerCase() === coach.email.toLowerCase())
+        ? prev
+        : [...prev, { id: `db-${coach.email}`, name: coach.name, role: coach.title, email: coach.email, group: coach.eventGroup, sourceUrl: coach.sourceUrl }],
+    );
+    setCopied(false);
+  }
+  const isAdded = (email: string) => manualRecipients.some((r) => r.email.toLowerCase() === email.toLowerCase());
+
   // A scoped Google search for the selected program's official staff directory.
   const coachSearchUrl = school
     ? `https://www.google.com/search?q=${encodeURIComponent(`${school.name} track and field coaches staff directory`)}`
@@ -145,8 +186,8 @@ export default function EmailBuilderPage() {
   // athlete's event. Used to nudge toward the head coach or recruiting
   // coordinator when the added coaches do not cover it.
   const hasEventCoach = useMemo(
-    () => manualRecipients.some((c) => roleCoversEvent(c.role, athlete.event)),
-    [manualRecipients, athlete.event],
+    () => manualRecipients.some((c) => coversGroup(c, athleteGroup)),
+    [manualRecipients, athleteGroup],
   );
   // Only surface the gap once at least one coach has been added; the empty case
   // is already covered by the find-them-yourself messaging.
@@ -218,8 +259,8 @@ export default function EmailBuilderPage() {
     <div className="page">
       <PageHead eyebrow="Coach outreach" title="Email builder">
         <p>
-          Pick a program, add the coaches to address, and CollegeLane assembles a ready-to-send draft from your saved profile. The
-          draft is read-only, so copy it into your own email to send.
+          Pick a program and CollegeLane suggests the right coaches for your event from its verified database, then assembles a
+          ready-to-send draft from your saved profile. The draft is read-only, so copy it into your own email to send.
         </p>
       </PageHead>
 
@@ -310,14 +351,69 @@ export default function EmailBuilderPage() {
 
             {school && (
               <>
-                {/* Find-them-yourself helper: a scoped Google search plus a note. */}
-                <div className="stack" style={{ gap: 8 }}>
-                  <a className="link" href={coachSearchUrl} target="_blank" rel="noopener noreferrer">
-                    Find this program&apos;s coaches
-                  </a>
-                  <p className="hint">
-                    Automatic lookup is off by design. Open the official staff page, then add the coaches you want to contact below.
-                  </p>
+                {/* Verified coach lookup: suggestions from the bundled coach DB,
+                    the athlete's event specialist first. One tap adds a coach. */}
+                <div className="stack" style={{ gap: 10 }}>
+                  <div className="between">
+                    <h3 className="h3">Suggested coaches</h3>
+                    {suggested.length > 0 && <Badge tone="muted">{athleteGroup} · verified</Badge>}
+                  </div>
+
+                  {loadingCoaches ? (
+                    <p className="hint">Looking up verified coaches…</p>
+                  ) : suggested.length > 0 ? (
+                    <div className="stack" style={{ gap: 8 }}>
+                      {suggested.map((c) => {
+                        const match = c.eventGroup === athleteGroup;
+                        const added = isAdded(c.email);
+                        return (
+                          <div
+                            key={c.email + c.name}
+                            className="between"
+                            style={{
+                              border: `1px solid ${match ? "var(--brand)" : "var(--line)"}`,
+                              borderRadius: "var(--radius-sm)",
+                              padding: "10px 12px",
+                              gap: 10,
+                            }}
+                          >
+                            <span style={{ flex: 1, minWidth: 0 }}>
+                              <b style={{ fontSize: 14 }}>{c.name}</b>{" "}
+                              {match && <Badge tone="brand">Your event</Badge>}
+                              <div className="hint" style={{ whiteSpace: "normal" }}>
+                                {[c.title, c.email].filter(Boolean).join(" · ")}
+                              </div>
+                            </span>
+                            <Button
+                              variant={added ? "ghost" : "secondary"}
+                              size="sm"
+                              onClick={() => addSuggested(c)}
+                              disabled={added}
+                            >
+                              {added ? "Added" : "Add"}
+                            </Button>
+                          </div>
+                        );
+                      })}
+                      <p className="hint">
+                        Pulled from each program&apos;s official staff page. Always confirm the address there before sending —{" "}
+                        <a className="link" href={coachSearchUrl} target="_blank" rel="noopener noreferrer">
+                          open the staff directory
+                        </a>
+                        .
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="stack" style={{ gap: 8 }}>
+                      <p className="hint">
+                        We don&apos;t have verified coaches on file for this program yet. Open the official staff page and add them by
+                        hand below.
+                      </p>
+                      <a className="link" href={coachSearchUrl} target="_blank" rel="noopener noreferrer">
+                        Find this program&apos;s coaches
+                      </a>
+                    </div>
+                  )}
                 </div>
 
                 {/* None of the added coaches specialise in the athlete's event. */}
@@ -333,7 +429,7 @@ export default function EmailBuilderPage() {
                   <div>
                     <h3 className="h3">Add a coach manually</h3>
                     <p className="hint" style={{ marginTop: 4 }}>
-                      Add each coach from the official staff page. Name is required, email and role are optional.
+                      Not listed above? Add any coach from the official staff page by hand. Name is required, email and role are optional.
                     </p>
                   </div>
 

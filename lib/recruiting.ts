@@ -71,6 +71,21 @@ export const emptyAthlete: AthleteProfile = {
 
 export function isRunningEvent(event: EventName) { return event.includes("metres"); }
 export function isCombinedEvent(event: EventName) { return event === "Decathlon" || event === "Heptathlon"; }
+
+// the coaching specialty an event falls under, matching how the coach database
+// (scripts/coach_probe.py) tags each coach's eventGroup. used to suggest the
+// right coach for an athlete's event in the email builder.
+export type CoachGroup = "sprints" | "hurdles" | "jumps" | "vault" | "throws" | "distance" | "combined" | "general";
+const EVENT_GROUP: Record<EventName, CoachGroup> = {
+  "100 metres": "sprints", "200 metres": "sprints", "400 metres": "sprints",
+  "800 metres": "distance", "1500 metres": "distance", "5000 metres": "distance", "10,000 metres": "distance",
+  "100 metres hurdles": "hurdles", "110 metres hurdles": "hurdles", "400 metres hurdles": "hurdles",
+  "3000 metres steeplechase": "distance",
+  "High jump": "jumps", "Long jump": "jumps", "Triple jump": "jumps", "Pole vault": "vault",
+  "Shot put": "throws", "Discus": "throws", "Hammer throw": "throws", "Javelin": "throws",
+  "Decathlon": "combined", "Heptathlon": "combined",
+};
+export function eventGroup(event: EventName): CoachGroup { return EVENT_GROUP[event] ?? "general"; }
 // Running = seconds (lower is better), combined events = points, everything else
 // (jumps, vaults, throws) = metres. isRunningEvent already reads any "... metres"
 // name (sprints, distance, hurdles, steeplechase) as a timed event.

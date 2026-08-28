@@ -44,3 +44,6 @@ next-env.d.ts
 # TypeScript incremental build info
 tsconfig.tsbuildinfo
 *.tsbuildinfo
+
+# coach-db scratch/working files (only coaches.json ships)
+data/_coach_*

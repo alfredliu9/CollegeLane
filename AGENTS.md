@@ -66,8 +66,9 @@ Next loads `.env` automatically. `NEXT_PUBLIC_*` vars reach the browser; the oth
 Supabase Postgres (schema in `supabase/schema.sql`), reached only through the service-role client, so route handlers MUST scope every query by the authenticated `user.id`.
 
 - `user_state` — account-scoped key/value JSON store; holds nearly all app data. Keys: `cl-athlete`, `cl-schools`, `cl-tasks`, `cl-outreach`, `cl-chat`, `cl-note-<school-id>`, `cl-email-uploads`.
-- `coaches` — verified coach cache per school (~30-day TTL).
 - `user_uploads` — metadata for uploads; files live in Supabase Storage bucket `uploads`.
+
+Coach data is **bundled static data**, not in the database (see below).
 
 Access helpers:
 - `lib/state.ts` — `readState` / `readStateEntry` / `writeState` for the KV store.
@@ -75,15 +76,16 @@ Access helpers:
 
 School directory + verified metrics are **bundled static data** (`data/schoolCatalog.ts`, `data/schoolDirectory.json`, `data/verifiedMetrics.json`) — not in the database. Verified metrics now cover **all outdoor events for both men and women** (~21,600 roster-average rows across ~776 schools), scraped from TFRRS via `scripts/import-tfrrs-metrics.py`. Recommendations work for both genders; events/schools without a verified row fall back to research-only rather than being estimated.
 
+The **coach database** is also bundled static data (`data/coaches.json`, typed via `data/coachDatabase.ts`): ~2,900 real coaches (name, title, event group, verbatim email, source URL) across **724 of 776 schools**. It is built with **no OpenAI and no API keys**: `scripts/import-coaches.py` resolves each school's athletics domain from the NCAA membership directory (free, authoritative) and extracts coaches off the official staff pages via `scripts/coach_probe.py` (Sidearm-style sites). Schools that pass can't crack are written to `data/_coach_misses.json` and finished by a subagent pass (`scripts/coach_misses_workflow.js` → `merge_coach_batches.py`, which also verifies every agent-supplied email literally appears on its cited page). **Emails are only ever taken verbatim from a fetched page — never constructed.** `data/coachDatabase.ts` exposes `coachesForSchool(schoolId, {group, gender})`, which orders the athlete's event specialist and head coach first.
+
 ## API routes (`app/api/*`)
 
 All require an authenticated session (`currentUser()`), return `401` otherwise.
 - `state` — GET/PUT the `user_state` KV.
 - `schools` — search the bundled catalog (`q`, `event`, `gender`, `pathway`, `division`, `id`).
 - `recommendations` — deterministic school recommendations (`lib/recommendations.ts`); reads `cl-athlete` from Postgres; refuses women-specific results.
-- `coaches` — OpenAI-assisted official-web coach lookup, cached in `coaches`.
+- `coaches` — coach lookup for the email builder; reads the bundled verified coach database (`data/coachDatabase.ts`), filtered/ordered by the athlete's event group. No OpenAI.
 - `uploads` — POST/GET athlete files via Supabase Storage (MP4 ≤100MB, PDF ≤10MB).
-- `assistant` — profile-aware OpenAI Responses API chat; persists `cl-chat`.
 
 ## UI
 
@@ -100,8 +102,7 @@ Private (under `app/(app)/`, except `/onboarding` which is full-screen): `/onboa
 
 - Nothing is deployed. Import to Vercel + set env vars + add prod redirect URLs to Supabase when ready.
 - Supabase project setup (`supabase/schema.sql`, `uploads` bucket, auth URLs) is a manual one-time step — see `SETUP.md`.
-- Women's roster metrics still need verified coverage.
-- Coach coverage is on-demand (OpenAI), not a prebuilt database.
+- Coach database covers 724/776 schools; ~52 remain (mostly schools that don't publish coach emails, or non-standard JS staff pages). Re-run `CL_ONLY_MISSES=1 python3 scripts/import-coaches.py` after any resolver/probe improvement.
 - Privacy policy, consent, data-retention, account deletion, password recovery, and monitoring need a launch review.
 
 ## Safe working rules
