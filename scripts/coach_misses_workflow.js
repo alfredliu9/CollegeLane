@@ -30,12 +30,24 @@ WORKING DIR: /Users/matin/Projects/CollegeLane (all paths relative to it).
 
 YOUR SCHOOLS: Read \`data/_coach_misses.json\` (a JSON array). Process ONLY indices ${start} to ${end - 1} inclusive. Each entry is {id, name, region, domain (may be null), reason}.
 
-PER SCHOOL (cap your effort — at most ~2 web searches + a few fetches, then move on):
-1. If \`domain\` is set, first try: \`python3 scripts/coach_probe.py <domain> <id>\` — it returns a JSON array of coaches with exact emails. If non-empty, use it and you're done with that school.
-2. If that's empty or domain is null: use WebSearch like \`<name> track and field coaches\` or \`<name> athletics staff directory\` to find the OFFICIAL athletics site and its track & field coaches/staff page. Ignore wikipedia, ncaa.org, tfrrs, hudl, news, social media.
-   - Once you have the real athletics domain, try the probe again with it: \`python3 scripts/coach_probe.py <domain> <id>\`.
-   - If the probe is still empty (JS-rendered listing or non-Sidearm CMS), fetch the actual coaches/staff-directory page RAW HTML: \`curl -skL --max-time 25 -A "Mozilla/5.0" '<url>'\`. Some Sidearm sites have a JS listing but static per-coach bio pages — if you can find bio page URLs (in search results or page links), fetch those; they carry mailto: emails.
-3. From the fetched HTML, extract each TRACK/CROSS-COUNTRY coach: name, title, and email (verbatim). Skip non-track sports. Map the title to an eventGroup by keyword: pole vault/vault→"vault"; hurdle→"hurdles"; jump/horizontal/vertical→"jumps"; throw/shot/discus/hammer/javelin/weight→"throws"; sprint/speed/relay→"sprints"; distance/cross country/xc/steeple/mid→"distance"; combined/multi/decathlon/heptathlon→"combined"; a head coach or director with no listed specialty→"general".
+These are the HARD leftovers: their coach LISTING pages are usually JavaScript-rendered (so raw HTML of the listing looks empty), but the individual coach BIO pages are static and DO carry the email. Your job is to find the bio-page URLs and read the emails off them.
+
+PER SCHOOL (cap effort ~3 searches + a handful of fetches, then move on):
+1. Try the probe first: \`python3 scripts/coach_probe.py <domain> <id>\` (domain from the entry). If non-empty, use it, done.
+2. If empty: find the individual coach BIO page URLs (NOT just the listing). Best sources:
+   - WebSearch \`<name> track and field coach\` / \`<name> cross country coach\` — search results often ARE the individual bio pages.
+   - The site's coach sitemap: fetch \`https://<domain>/sitemap.xml\` and any sub-sitemap whose URL contains "coach"/"roster"/"staff"; grep it for bio URLs.
+   Bio URLs take MANY shapes — accept all of these:
+     /sports/<slug>/roster/coaches/<name>/<id>
+     /sports/<slug>/roster/season/<year>/(coach|staff)/<name>
+     /sports/<slug>/<year>/coaches/<name>
+     /sports/<slug>/coaches/<Name>
+     /staff-directory/<name>/<id>
+3. Fetch each bio page's RAW HTML: \`curl -skL --max-time 25 -A "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126 Safari/537.36" '<bio-url>'\`. Take the email EXACTLY as it appears (a mailto: link or plain text). The coach's real NAME is usually in the page <title> or an <h1> ("Nathan Huffman - ...") — use that, not the URL slug. Confirm the person is TRACK or CROSS COUNTRY staff (title/page mentions track, cross country, or a T&F event) — skip other sports.
+4. BOT-PROTECTED SITES: if curl returns a tiny body, an HTTP 202/403, or a "checking your browser" challenge instead of the real page, that site blocks scripts — you CANNOT get its email. Note it and skip. Do NOT guess.
+5. Map title to eventGroup: pole vault/vault→"vault"; hurdle→"hurdles"; jump/horizontal/vertical→"jumps"; throw/shot/discus/hammer/javelin/weight→"throws"; sprint/speed/relay→"sprints"; distance/cross country/xc/steeple/mid→"distance"; combined/multi/decathlon/heptathlon→"combined"; head coach/director with no specialty→"general".
+
+ABSOLUTE RULE: only ever record an email that appears VERBATIM on a bio page you actually fetched. NEVER build an email from a name + the school's domain, even if the pattern seems obvious — those get thrown out and waste the work.
 
 Build rows shaped EXACTLY like:
 {"schoolId":"<id>","gender":"Men"|"Women"|"Both","name":"...","title":"...","eventGroup":"...","email":"...","sourceUrl":"<exact page url you extracted from>","reviewedAt":"2026-08-28"}

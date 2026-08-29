@@ -31,12 +31,18 @@ SLUGS = {
              "mens-and-womens-track-and-field", "track-and-field-cross-country",
              "cross-country-and-track-and-field", "cross-country-track"],
 }
-# the two Sidearm coach-bio URL shapes: old = /roster/coaches/<name>/<id>, and
-# newer = /roster/season/<year>/staff/<name>. auburntigers.com uses the newer one,
-# which is why the old-only probe wrongly wrote Auburn off as a miss.
+# Sidearm serves coach bios under a LOT of different URL shapes depending on the
+# site's vintage/config. cover all the ones seen in the wild; the coach's real
+# name is read from the bio page itself, not these slugs.
+#   old:      /roster/coaches/<name>/<id>
+#   newer:    /roster/season/<year>/staff|coach|coaches/<name>   (auburn, miami)
+#   year-dir: /<year>/coaches/<name>                             (anderson)
+#   direct:   /coaches/<Name>[/id]                               (blackburn)
 BIO_PATTERNS = [
-    r"/sports/{slug}/roster/coaches/[a-z0-9.\-]+/\d+",
-    r"/sports/{slug}/roster/season/[0-9\-]+/staff/[a-z0-9.\-]+",
+    r"/sports/{slug}/roster/coaches/[A-Za-z0-9._\-]+/\d+",
+    r"/sports/{slug}/roster/season/[0-9\-]+/(?:staff|coach|coaches)/[A-Za-z0-9._\-]+",
+    r"/sports/{slug}/[0-9]{4}-[0-9]{2}/coaches/[A-Za-z0-9._\-]+",
+    r"/sports/{slug}/coaches/[A-Za-z0-9._\-]+(?:/\d+)?",
 ]
 # title text -> event group used to match an athlete's event
 GROUPS = [
@@ -97,10 +103,23 @@ def looks_like_name(name):
 
 def _name_from_bio_url(bl):
     # old url ends /<name>/<id>; new url ends /staff/<name>. take the last segment
-    # that isnt purely digits.
+    # that isnt purely digits (split on - and _ so "Noah_Daum" -> "Noah Daum").
     segs = bl.rstrip("/").split("/")
     slug = segs[-2] if segs[-1].isdigit() else segs[-1]
-    return " ".join(w.capitalize() for w in slug.split("-"))
+    return " ".join(w.capitalize() for w in re.split(r"[-_]", slug))
+
+
+def _name_from_bio(bio, bl):
+    # prefer the coach's REAL name from the bio page's <title> ("Nathan Huffman -
+    # Anderson ..."), since many URLs carry only a surname or an abbreviation.
+    # fall back to the URL slug. return "" if neither looks like a real name.
+    tm = re.search(r"(?is)<title>\s*([^<|]+?)\s*(?:[-|]|</title>)", bio)
+    if tm:
+        cand = html.unescape(tm.group(1)).strip()
+        if looks_like_name(cand):
+            return cand
+    url_name = _name_from_bio_url(bl)
+    return url_name if looks_like_name(url_name) else ""
 
 
 def _title_from_bio(bio):
@@ -129,7 +148,9 @@ def sidearm_bios(domain, page, slug, gender):
     rows = []
     links = set()
     for pat in BIO_PATTERNS:
-        links |= set(re.findall(pat.format(slug=re.escape(slug)), page))
+        # .replace, NOT .format — the patterns contain regex quantifiers like {4}
+        # that str.format would try (and fail) to interpolate.
+        links |= set(re.findall(pat.replace("{slug}", re.escape(slug)), page))
     for bl in sorted(links)[:15]:
         try:
             bio = fetch("https://" + domain + bl)
@@ -138,8 +159,8 @@ def sidearm_bios(domain, page, slug, gender):
         email = next((e for e in re.findall(r"mailto:([\w.+\-]+@[\w.\-]+\.[a-z]{2,})", bio, re.I)), None)
         if not email:
             continue
-        name = _name_from_bio_url(bl)
-        if not looks_like_name(name):  # skip section/program pages, not real coaches
+        name = _name_from_bio(bio, bl)
+        if not name:  # skip section/program pages, not real coaches
             continue
         title = _title_from_bio(bio)
         rows.append({"gender": gender, "name": name, "title": title or "Coach",
