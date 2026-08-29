@@ -20,6 +20,19 @@ BATCHES = os.path.join(ROOT, "data", "_coach_batches")
 GROUPS = {"sprints", "hurdles", "jumps", "vault", "throws", "distance", "combined", "general"}
 EMAIL_RE = re.compile(r"^[\w.+\-]+@[\w.\-]+\.[a-z]{2,}$", re.I)
 ORDER = ["general", "distance", "sprints", "hurdles", "jumps", "vault", "throws", "combined"]
+_NOT_NAME = {"coach", "coaching", "track", "field", "cross", "country", "rowing", "sprints",
+             "sprint", "jumps", "jump", "throws", "throw", "distance", "hurdles", "hurdle",
+             "vault", "program", "outdoor", "indoor", "heavyweight", "lightweight", "director",
+             "assistant", "associate", "head", "volunteer", "graduate", "staff", "team",
+             "roster", "athletics", "recruiting", "operations", "strength", "conditioning",
+             "sports", "medicine", "trainer", "manager", "coordinator", "and", "the"}
+
+
+def looks_like_name(name):
+    toks = [t for t in re.split(r"\s+", (name or "").strip()) if t]
+    if len(toks) < 2 or any(t.lower().strip(".,-") in _NOT_NAME for t in toks):
+        return False
+    return all(re.match(r"^[A-Z][A-Za-z.'\-]*$", t) for t in toks)
 
 
 def valid(row, target_ids):
@@ -28,7 +41,7 @@ def valid(row, target_ids):
             row.get("schoolId") in target_ids
             and isinstance(row.get("email"), str)
             and EMAIL_RE.match(row["email"].strip())
-            and row.get("name")
+            and looks_like_name(row.get("name"))
             and row.get("eventGroup") in GROUPS
             and row.get("gender") in ("Men", "Women", "Both")
             and "example.com" not in row["email"].lower()

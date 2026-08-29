@@ -8,9 +8,10 @@ email on a real page just return [].
 Usage:  python3 scripts/coach_probe.py <domain> <schoolId>
         -> prints a JSON array of coach rows (may be empty) to stdout.
 
-Handles the common layouts:
-  * Sidearm Sports  /sports/<slug>/coaches  + per-coach bio pages (mailto:)
-  * Sidearm staff-directory / generic pages with inline mailto: + nearby title
+Extraction is bio-page only: we follow each per-coach bio (which serves a clean
+structured name + title + mailto:) and never scrape a listing page's loose
+mailto: links, because that pairs emails with section headers ("Cross Country",
+"Field Coach") or even cross-sport staff. A miss just returns [].
 Only track & field / cross country staff are kept.
 """
 import html, json, re, ssl, sys, urllib.error, urllib.parse, urllib.request
@@ -47,8 +48,6 @@ GROUPS = [
     ("sprints", ["sprint", "short", "speed", "relay"]),
     ("distance", ["distance", "mid-distance", "middle distance", "cross country", "xc", "endurance", "steeple"]),
 ]
-HEAD_WORDS = ["director of track", "head coach", "head track", "head cross country",
-              "associate head coach", "assistant coach", "volunteer assistant", "graduate assistant"]
 
 
 def fetch(url):
@@ -74,6 +73,26 @@ def clean_title(raw):
     # collapse whitespace, keep it to a sane length, drop trailing junk
     t = re.sub(r"\s+", " ", raw).strip(" -|·,")
     return t[:80]
+
+
+# words that mean a "name" is really a role/section/sport label, not a person.
+# guards against bio-slug junk like "track-and-field-staff" -> "Track And Field Staff".
+_NOT_NAME = {"coach", "coaching", "track", "field", "cross", "country", "rowing", "sprints",
+             "sprint", "jumps", "jump", "throws", "throw", "distance", "hurdles", "hurdle",
+             "vault", "program", "outdoor", "indoor", "heavyweight", "lightweight", "director",
+             "assistant", "associate", "head", "volunteer", "graduate", "staff", "team",
+             "roster", "athletics", "recruiting", "operations", "strength", "conditioning",
+             "sports", "medicine", "trainer", "manager", "coordinator", "and", "the"}
+
+
+def looks_like_name(name):
+    # a real coach name is 2+ capitalised word-tokens, none of which is a role/sport word.
+    toks = [t for t in re.split(r"\s+", name.strip()) if t]
+    if len(toks) < 2:
+        return False
+    if any(t.lower().strip(".,-") in _NOT_NAME for t in toks):
+        return False
+    return all(re.match(r"^[A-Z][A-Za-z.'\-]*$", t) for t in toks)
 
 
 def _name_from_bio_url(bl):
@@ -119,35 +138,13 @@ def sidearm_bios(domain, page, slug, gender):
         email = next((e for e in re.findall(r"mailto:([\w.+\-]+@[\w.\-]+\.[a-z]{2,})", bio, re.I)), None)
         if not email:
             continue
+        name = _name_from_bio_url(bl)
+        if not looks_like_name(name):  # skip section/program pages, not real coaches
+            continue
         title = _title_from_bio(bio)
-        rows.append({"gender": gender, "name": _name_from_bio_url(bl), "title": title or "Coach",
+        rows.append({"gender": gender, "name": name, "title": title or "Coach",
                      "eventGroup": group_for(title), "email": email,
                      "sourceUrl": "https://" + domain + bl})
-    return rows
-
-
-def inline_mailtos(domain, url, page, gender):
-    """Fallback: staff-directory style pages with inline mailto: links. Pair each
-    email with the nearest preceding name + title text."""
-    rows = []
-    text = strip_tags(page)
-    for m in re.finditer(r"mailto:([\w.+\-]+@[\w.\-]+\.[a-z]{2,})", page, re.I):
-        email = m.group(1)
-        # look at the ~400 chars of visible text before this email for a name/title
-        before = strip_tags(page[max(0, m.start() - 1200):m.start()])
-        low = before.lower()
-        if not any(w in low for w in ("track", "cross country", "field")) and \
-           not any(w in low for w in HEAD_WORDS):
-            continue
-        nm = re.findall(r"\b([A-Z][a-z]+(?:\s+[A-Z]\.?)?\s+[A-Z][a-z]+(?:-[A-Z][a-z]+)?)\b", before[-300:])
-        title_m = re.search(r"(?i)(head coach|assistant coach|associate head coach|"
-                            r"director of track[^\n.]{0,40}|volunteer assistant|graduate assistant)([^\n.]{0,50})",
-                            before[-400:])
-        rows.append({"gender": gender,
-                     "name": nm[-1] if nm else "",
-                     "title": clean_title(title_m.group(0)) if title_m else "Coach",
-                     "eventGroup": group_for(title_m.group(0) if title_m else ""),
-                     "email": email, "sourceUrl": url})
     return rows
 
 
@@ -167,8 +164,6 @@ def probe(domain, school_id):
                 except Exception:
                     continue
                 rows = sidearm_bios(domain, page, slug, gender)
-                if not rows and suffix == "coaches":
-                    rows = inline_mailtos(domain, url, page, gender)
                 if rows:
                     break
             if not rows:

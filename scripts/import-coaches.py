@@ -59,7 +59,10 @@ def resolve_domain(ncaa_id):
     i = h.find("Athletics Links")
     region = h[i:i + 2000] if i >= 0 else h
     for real in re.findall(r'href="(https?://[^"]+)"', region):
-        d = re.sub(r"^https?://(www\.)?", "", real).split("/")[0].lower()
+        # take the host after the LAST "://" so malformed doubled-protocol links
+        # like "http://https://gocrimson.com/" (a real NCAA data-entry quirk that
+        # was silently killing Harvard etc.) resolve to gocrimson.com, not "https:".
+        d = re.sub(r"^www\.", "", real.split("://")[-1]).split("/")[0].lower()
         if not d or "." not in d or any(s in d for s in _NONATH):
             continue
         # within the Athletics Links section the link IS the athletics site, so

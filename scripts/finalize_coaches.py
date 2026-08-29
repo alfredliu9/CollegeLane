@@ -6,9 +6,22 @@ agent-found rows already living in data/coaches.json (those were verified to
 appear verbatim on their source pages). Result overwrites data/coaches.json and
 recomputes data/_coach_misses.json.
 """
-import json, os
+import json, os, re
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_NOT_NAME = {"coach", "coaching", "track", "field", "cross", "country", "rowing", "sprints",
+             "sprint", "jumps", "jump", "throws", "throw", "distance", "hurdles", "hurdle",
+             "vault", "program", "outdoor", "indoor", "heavyweight", "lightweight", "director",
+             "assistant", "associate", "head", "volunteer", "graduate", "staff", "team",
+             "roster", "athletics", "recruiting", "operations", "strength", "conditioning",
+             "sports", "medicine", "trainer", "manager", "coordinator", "and", "the"}
+
+
+def looks_like_name(name):
+    toks = [t for t in re.split(r"\s+", (name or "").strip()) if t]
+    if len(toks) < 2 or any(t.lower().strip(".,-") in _NOT_NAME for t in toks):
+        return False
+    return all(re.match(r"^[A-Z][A-Za-z.'\-]*$", t) for t in toks)
 DET = os.path.join(ROOT, "data", "_coaches_det.json")
 CUR = os.path.join(ROOT, "data", "coaches.json")
 TARGETS = os.path.join(ROOT, "data", "_coach_targets.json")
@@ -35,8 +48,9 @@ def main():
     det = json.load(open(DET, encoding="utf-8"))
     cur = json.load(open(CUR, encoding="utf-8"))
     det_ids = {r["schoolId"] for r in det}
-    # keep agent-found coaches only for schools the deterministic probe still misses
-    supplement = [r for r in cur if r["schoolId"] not in det_ids]
+    # keep agent-found coaches only for schools the deterministic probe still
+    # misses, and drop any with a junk name (section header / role / cross-sport).
+    supplement = [r for r in cur if r["schoolId"] not in det_ids and looks_like_name(r["name"])]
     supp_ids = {r["schoolId"] for r in supplement}
     combined = collapse(det + supplement)
     json.dump(combined, open(CUR, "w", encoding="utf-8"), ensure_ascii=False, separators=(",", ":"))
