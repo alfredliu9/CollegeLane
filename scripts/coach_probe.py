@@ -148,11 +148,46 @@ def sidearm_bios(domain, page, slug, gender):
     return rows
 
 
-def probe(domain, school_id):
-    domain = re.sub(r"^https?://(www\.)?", "", domain.strip()).split("/")[0].lower()
-    seen = set()
-    out = []
-    for gender, slugs in SLUGS.items():
+def discover_slugs(domain):
+    """Discover a site's REAL track/XC sport slug(s) from its sitemap, instead of
+    guessing from a hardcoded list. Sidearm sites use non-obvious abbreviations
+    (okstate = "mxct" for men's XC+track) that no fixed list will ever cover, but
+    every one publishes them in /sitemap.xml (or its coach/roster sub-sitemaps).
+    Returns [(gender, slug), ...] ordered, empty if the sitemap isn't reachable."""
+    slugs = set()
+    try:
+        idx = fetch(f"https://{domain}/sitemap.xml")
+    except Exception:
+        return []
+    subs = re.findall(r"(https?://[^<\s]+\.xml)", idx)
+    # if it's a sitemap index, follow the sub-sitemaps that carry sport pages
+    pages = [idx]
+    for su in subs:
+        if any(k in su.lower() for k in ("coach", "roster", "schedule", "page")):
+            try:
+                pages.append(fetch(su))
+            except Exception:
+                pass
+        if len(pages) >= 5:
+            break
+    for page in pages:
+        slugs |= set(re.findall(r"/sports/([a-z0-9\-]+)/", page))
+    # keep only track / cross-country slugs, incl. Sidearm abbreviations (mxct,
+    # wxc, mtf...). match "cross-country" NOT bare "cross" (that catches laCROSSe).
+    tf = [s for s in slugs if re.search(r"track|cross-?country|xct|[mw]xc|[mw]tf$", s)]
+
+    def gender_of(s):
+        if s.startswith("wom") or re.match(r"^w[a-z]{0,3}$", s):
+            return "Women"
+        if s.startswith("men") or re.match(r"^m[a-z]{0,3}$", s):
+            return "Men"
+        return "Both"
+    # men/women specific first, combined last, so per-squad pages win
+    return sorted(((gender_of(s), s) for s in tf), key=lambda x: (x[0] == "Both", x[1]))
+
+
+def _probe_buckets(domain, school_id, buckets, seen, out):
+    for gender, slugs in buckets:
         for slug in slugs:
             rows = []
             # bio links live on the /coaches listing (old) OR the /roster page
@@ -174,6 +209,17 @@ def probe(domain, school_id):
                     seen.add(key)
                     out.append({"schoolId": school_id, **r, "reviewedAt": "2026-08-28"})
             break  # got this gender bucket, don't try the remaining slugs
+
+
+def probe(domain, school_id):
+    domain = re.sub(r"^https?://(www\.)?", "", domain.strip()).split("/")[0].lower()
+    seen, out = set(), []
+    # try the site's OWN advertised slugs first (discovered from its sitemap)...
+    _probe_buckets(domain, school_id, [(g, [s]) for g, s in discover_slugs(domain)], seen, out)
+    # ...and only fall back to the common hardcoded slugs if that found nothing
+    # (sites whose sitemap we couldn't read).
+    if not out:
+        _probe_buckets(domain, school_id, list(SLUGS.items()), seen, out)
     return out
 
 
